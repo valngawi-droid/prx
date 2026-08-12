@@ -25,6 +25,7 @@ $menuAdmin = [
 $menuOwner = [
     ['/owner', '👑', 'Owner Control'],
     ['/owner/users', '🛡️', 'Admin & User'],
+    ['/owner/firewall', '🧯', 'Firewall'],
     ['/owner/filemanager', '🗂️', 'File Manager'],
     ['/owner/links', '🔗', 'Atur Link'],
     ['/owner/settings', '⚙️', 'Setting & RTP'],

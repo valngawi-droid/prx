@@ -61,6 +61,7 @@ addEventListener('load', () => {
 <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
     <?php
     $shortcuts = [
+        ['/owner/firewall', '🧯', 'Firewall', 'Anti-deface: ban IP otomatis/manual + jurnal ancaman'],
         ['/owner/filemanager', '🗂️', 'File Manager', 'Edit source code langsung dari browser (Monaco Editor)'],
         ['/owner/users', '🛡️', 'Kelola Akun', 'Add / edit / ban / delete admin & user'],
         ['/owner/settings', '⚙️', 'RTP & Setting', 'Atur win-rate RNG semua mini games'],

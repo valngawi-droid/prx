@@ -182,6 +182,11 @@ return static function (Router $r): void {
     $r->post('/owner/backups/create', [OwnerController::class, 'backupCreate'], OwnerMiddleware::class);
     $r->get('/owner/backups/{file}/download', [OwnerController::class, 'backupDownload'], OwnerMiddleware::class);
 
+    // 🧯 Firewall (anti-deface/hack)
+    $r->get('/owner/firewall', [OwnerController::class, 'firewall'], OwnerMiddleware::class);
+    $r->post('/owner/firewall/ban', [OwnerController::class, 'firewallBan'], OwnerMiddleware::class);
+    $r->post('/owner/firewall/unban', [OwnerController::class, 'firewallUnban'], OwnerMiddleware::class);
+
     $r->get('/owner/users', [OwnerController::class, 'users'], OwnerMiddleware::class);
     $r->get('/owner/integrations', [OwnerController::class, 'integrations'], OwnerMiddleware::class);
     $r->post('/owner/integrations', [OwnerController::class, 'saveIntegrations'], OwnerMiddleware::class);

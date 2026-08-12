@@ -61,7 +61,11 @@ final class Request
 
     public function ip(): string
     {
-        // Hormati reverse proxy tepercaya (Cloudflare/Nginx)
+        // Cloudflare menitipkan IP asli pengunjung di CF-Connecting-IP
+        $cf = trim((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? ''));
+        if ($cf !== '' && filter_var($cf, FILTER_VALIDATE_IP)) {
+            return substr($cf, 0, 45);
+        }
         $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
         return substr($ip, 0, 45);
     }

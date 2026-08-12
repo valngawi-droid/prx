@@ -130,6 +130,22 @@ set_exception_handler(static function (\Throwable $e): void {
 });
 
 $request = Request::capture();
+
+// ── 🛡️ Security headers (anti-sniff, anti-clickjacking, dsb.) ──
+$__host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+header('X-Content-Type-Options: nosniff');
+header('X-XSS-Protection: 1; mode=block');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+if (!str_ends_with($__host, '.e2b.app')) { // jangan rusak preview iframe sandbox
+    header('X-Frame-Options: SAMEORIGIN');
+    header("Content-Security-Policy: frame-ancestors 'self'");
+}
+unset($__host);
+
+// ── 🧯 FIREWALL: blokir IP terlarang & tangkap deface/hack ──
+\ChiperX\Services\Firewall::guard();
+
 $router  = new Router();
 (require BASE_PATH . '/src/routes/web.php')($router);
 $router->dispatch($request);

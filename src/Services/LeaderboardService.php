@@ -38,7 +38,8 @@ final class LeaderboardService
     {
         [$start, $end] = self::weekBounds(time() + $weekOffset * 604800);
         return Database::all(
-            'SELECT u.id AS user_id, u.name, u.email, SUM(g.reward) AS earned
+            // PRIVASI: jangan ikutkan email — leaderboard hanya butuh nama
+            'SELECT u.id AS user_id, u.name, SUM(g.reward) AS earned
              FROM game_history g
              JOIN users u ON u.id = g.user_id
              WHERE g.created_at >= ? AND g.created_at < ? AND g.reward > 0 AND u.status = \'active\'

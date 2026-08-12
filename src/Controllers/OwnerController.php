@@ -168,6 +168,57 @@ final class OwnerController extends Controller
         exit;
     }
 
+    // =================== 🧯 FIREWALL (anti-deface/hack) ===================
+
+    public function firewall(Request $req): string
+    {
+        $bans = []; $threats = []; $stats = ['active' => 0, 'permanent' => 0, 'threats24h' => 0, 'critical24h' => 0];
+        try {
+            $bans    = \ChiperX\Services\Firewall::bannedList();
+            $threats = \ChiperX\Services\Firewall::threats(60);
+            $stats   = \ChiperX\Services\Firewall::stats();
+        } catch (\Throwable) {
+            flash('warning', 'Tabel firewall belum ada — jalankan migrasi 010 dulu ya.');
+        }
+        return $this->panel('owner/firewall', [
+            'title'   => '🧯 Firewall',
+            'bans'    => $bans,
+            'threats' => $threats,
+            'stats'   => $stats,
+        ]);
+    }
+
+    public function firewallBan(Request $req): Response
+    {
+        $this->guardCsrf();
+        $ip      = trim($req->str('ip', '', 45));
+        $reason  = $req->str('reason', '', 190);
+        $dur     = $req->str('duration', '600', 10);
+        $seconds = $dur === 'perm' ? 0 : max(60, (int) $dur);
+        if ($ip === '' || !filter_var($ip, FILTER_VALIDATE_IP)) {
+            flash('error', 'Format IP tidak valid.');
+            return redirect('/owner/firewall');
+        }
+        \ChiperX\Services\Firewall::banManual($ip, $reason !== '' ? $reason : 'Diblokir manual oleh Owner', $seconds);
+        AuditLogger::record('owner.firewall_ban', ['ip' => $ip, 'dur' => $dur, 'reason' => $reason], 'critical', (int) auth_user()['id'], $req->ip());
+        flash('success', "IP {$ip} diblokir " . ($dur === 'perm' ? 'PERMANEN ⛔' : 'selama ' . $dur . ' detik') . '.');
+        return redirect('/owner/firewall');
+    }
+
+    public function firewallUnban(Request $req): Response
+    {
+        $this->guardCsrf();
+        $ip = trim($req->str('ip', '', 45));
+        if ($ip === '') {
+            flash('error', 'IP kosong.');
+            return redirect('/owner/firewall');
+        }
+        \ChiperX\Services\Firewall::unban($ip);
+        AuditLogger::record('owner.firewall_unban', ['ip' => $ip], 'warning', (int) auth_user()['id'], $req->ip());
+        flash('success', "Ban IP {$ip} dicabut ✅");
+        return redirect('/owner/firewall');
+    }
+
     // =================== USER & ADMIN MANAGEMENT ===================
 
     public function users(Request $req): string
