@@ -20,7 +20,17 @@
         <?php foreach ($users as $usr): ?>
             <tr class="border-b border-white/5 hover:bg-white/[.02]">
                 <td class="p-4"><b class="text-white"><?= e($usr['name']) ?></b><p class="text-xs text-slate-500"><?= e($usr['email']) ?></p></td>
-                <td class="p-4 text-amber-300 font-semibold">🪙 <?= e(number_format((int) $usr['coin_balance'])) ?></td>
+                <td class="p-4 text-amber-300 font-semibold">
+                    🪙 <?= e(number_format((int) $usr['coin_balance'])) ?>
+                    <!-- 💰 Atur koin cepat (+/−) -->
+                    <form method="post" action="/admin/users/<?= (int) $usr['id'] ?>/coins" class="mt-1.5 flex items-center gap-1">
+                        <?= csrf_field() ?>
+                        <input name="delta" type="number" min="-100000" max="100000" placeholder="+50 / -20" required
+                               class="form-input w-20 text-[11px] py-1 px-2" title="Isi +50 untuk menambah, -20 untuk mengurangi">
+                        <input name="reason" maxlength="120" placeholder="alasan (ops.)" class="hidden sm:block form-input w-24 text-[11px] py-1 px-2">
+                        <button class="px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold hover:bg-amber-500/25 transition" title="Terapkan perubahan koin">OK</button>
+                    </form>
+                </td>
                 <td class="p-4 text-xs text-slate-500"><?= e($usr['last_login'] ? waktu_lalu($usr['last_login']) : 'belum pernah') ?></td>
                 <td class="p-4"><?= $usr['status'] === 'active' ? '<span class="text-emerald-300 text-xs font-bold">● AKTIF</span>' : '<span class="text-red-400 text-xs font-bold">● BANNED</span>' ?></td>
                 <td class="p-4 text-right">

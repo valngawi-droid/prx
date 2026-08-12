@@ -176,6 +176,41 @@ try {
 // ── 🧯 FIREWALL: blokir IP terlarang & tangkap deface/hack ──
 \ChiperX\Services\Firewall::guard();
 
+// ── 🚧 MODE PEMELIHARAAN (owner > Setting): publik disambut halaman
+// "Sedang Maintenance"; staf (admin/owner) & gerbang login tetap bisa lewat.
+try {
+    if (\ChiperX\Models\Setting::get('maintenance_mode', '0') === '1') {
+        $__mtPath  = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $__mtStaff = auth_user();
+        $__mtBoleh = ($__mtStaff && in_array($__mtStaff['role'] ?? 'user', ['admin', 'owner'], true));
+        if (!$__mtBoleh) {
+            foreach (['/login', '/logout', '/daftar', '/auth', '/zszdgj', '/webhook'] as $__mtP) {
+                if ($__mtPath === $__mtP || str_starts_with($__mtPath, $__mtP . '/')) {
+                    $__mtBoleh = true;
+                    break;
+                }
+            }
+        }
+        if (!$__mtBoleh) {
+            while (ob_get_level() > 0) {
+                @ob_end_clean();
+            }
+            http_response_code(503);
+            header('Retry-After: 600');
+            echo \ChiperX\Core\View::render('maintenance', [
+                'title' => 'Sedang Maintenance',
+                'note'  => \ChiperX\Models\Setting::get('maintenance_note', ''),
+            ], '');
+            exit;
+        }
+        unset($__mtBoleh);
+    }
+    unset($__mtPath, $__mtStaff);
+} catch (\Throwable) {
+    // Tabel settings belum ada (fresh install) → anggap maintenance OFF.
+}
+unset($__mtP);
+
 $router  = new Router();
 (require BASE_PATH . '/src/routes/web.php')($router);
 $router->dispatch($request);

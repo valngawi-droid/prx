@@ -133,6 +133,17 @@ final class GameService
                 }
                 $result = self::roll($game);
 
+                // ⚡ Event pengali koin global (diatur Owner) — berlaku ke hadiah game
+                if ($result['reward'] > 0) {
+                    $mult = max(0.5, min(10.0, (float) (\ChiperX\Models\Setting::get('coin_multiplier', '1') ?? '1')));
+                    if ($mult !== 1.0) {
+                        $result['reward'] = (int) round($result['reward'] * $mult);
+                        if ((int) $result['reward'] === 0) {
+                            $result['reward'] = 1;
+                        }
+                    }
+                }
+
                 if ($result['reward'] > 0) {
                     User::addCoins((int) $user['id'], $result['reward']);
                 }

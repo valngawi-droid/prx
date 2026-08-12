@@ -53,7 +53,26 @@ final class ToolsController extends Controller
         }
 
         try {
-            $payload = CodexApi::buildPayload($tool, fn(string $k): string => $req->str($k, '', 2000));
+            // 📱 Upload dari HP: kolom berspesifikasi 'up' (index ke-6) bisa diisi
+            // file — kita host sementara (bucket tmp, auto-prune 2 jam) lalu URL
+            // publiknyalah yang dikirim ke API Codex.
+            $uploaded = [];
+            foreach ($tool['fields'] as $f) {
+                $up = $f[6] ?? null;
+                if ($up === null) {
+                    continue;
+                }
+                $fkey = (string) $f[0];
+                $file = $_FILES[$fkey . '_file'] ?? null;
+                if ($file && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                    $name = $up === 'video'
+                        ? \ChiperX\Services\UploadService::saveMedia($file, 'tmp', 30)
+                        : \ChiperX\Services\UploadService::saveImage($file, 'tmp', 6);
+                    $uploaded[$fkey] = \ChiperX\Services\UploadService::publicUrl('tmp', $name);
+                }
+            }
+
+            $payload = CodexApi::buildPayload($tool, fn(string $k): string => $uploaded[$k] ?? $req->str($k, '', 2000));
 
             // Upload file (Catbox) — batasi 25MB, simpan sementara
             if (($tool['method'] ?? 'POST') === 'UPLOAD') {

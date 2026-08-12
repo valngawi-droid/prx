@@ -8,23 +8,41 @@ $bio      = trim((string) ($t['bio'] ?? ''));
 $vip      = user_is_vip($t);
 $online   = online_label($t['last_activity'] ?? null);
 $hasStory = (int) ($storyCount ?? 0) > 0;
+// 🎨 Visual kustom (v2.7): avatar, sampul, status, warna aksen
+$tAva     = trim((string) ($t['avatar'] ?? ''));
+$tCover   = trim((string) ($t['cover'] ?? ''));
+$tStatus  = trim((string) ($t['status_text'] ?? ''));
+$tAccent  = (string) ($t['accent'] ?? '');
+if (!preg_match('/^#[0-9a-fA-F]{6}$/', $tAccent)) { $tAccent = ''; }
 ?>
 <section class="px-4 sm:px-6 py-10 sm:py-14">
     <div class="max-w-3xl mx-auto space-y-6">
 
         <!-- Kartu identitas -->
-        <div class="glass-card p-6 sm:p-10 relative overflow-hidden" data-anim="zoom">
-            <div class="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-violet-700/20 blur-[90px] pointer-events-none"></div>
-            <div class="flex flex-col sm:flex-row items-center gap-6">
+        <div class="glass-card p-6 sm:p-10 relative overflow-hidden <?= $tCover !== '' ? 'pt-24 sm:pt-28' : '' ?>" data-anim="zoom">
+            <?php if ($tCover !== ''): ?>
+                <!-- 🎇 SAMPUL profil -->
+                <div class="absolute inset-x-0 top-0 h-32 sm:h-36">
+                    <img src="/media/sampul/<?= e($tCover) ?>" alt="sampul" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/55 to-transparent"></div>
+                </div>
+            <?php endif; ?>
+            <div class="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[90px] pointer-events-none" style="background: <?= $tAccent !== '' ? e($tAccent) . '33' : 'rgba(109,40,217,.20)' ?>"></div>
+            <div class="flex flex-col sm:flex-row items-center gap-6 relative">
                 <div class="relative shrink-0">
                     <?php
                     $avatarOpen  = $hasStory ? '<a href="/story/' . e($tuser) . '" title="Lihat Story" class="block rounded-[1.6rem] p-[3px] bg-gradient-to-tr from-violet-500 via-fuchsia-500 to-cyan-400 shadow-[0_0_24px_rgba(168,85,247,.5)] cursor-pointer hover:scale-105 transition">' : '<div class="block rounded-[1.6rem]">';
                     $avatarClose = $hasStory ? '</a>' : '</div>';
                     $avatarCls   = $vip ? 'ring-2 ring-amber-400 shadow-[0_0_45px_rgba(251,191,36,.5)]' : 'shadow-[0_0_45px_rgba(139,92,246,.45)]';
+                    $avatarStyle = $tAccent !== '' && !$vip ? 'box-shadow:0 0 45px ' . e($tAccent) . '73;' : '';
                     ?>
                     <?= $avatarOpen ?>
-                        <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-violet-600 to-cyan-400 grid place-items-center font-display text-4xl font-bold text-white <?= $avatarCls ?>">
-                            <?= e($inisial) ?>
+                        <div class="w-24 h-24 rounded-3xl overflow-hidden bg-gradient-to-br from-violet-600 to-cyan-400 grid place-items-center font-display text-4xl font-bold text-white <?= $avatarCls ?>" style="<?= $avatarStyle ?>">
+                            <?php if ($tAva !== ''): ?>
+                                <img src="/media/avatar/<?= e($tAva) ?>" alt="avatar" class="w-full h-full object-cover">
+                            <?php else: ?>
+                                <?= e($inisial) ?>
+                            <?php endif; ?>
                         </div>
                     <?= $avatarClose ?>
                     <span class="absolute -bottom-2 -right-2 text-2xl"><?= $roleEmoji ?></span>
@@ -34,6 +52,12 @@ $hasStory = (int) ($storyCount ?? 0) > 0;
                         <?= e($t['name']) ?><?= $vip ? ' 💎' : '' ?>
                     </h1>
                     <p class="text-sm text-slate-400 font-mono mt-0.5">@<?= e($t['username'] ?? '—') ?></p>
+                    <?php if ($tStatus !== ''): ?>
+                        <!-- 💬 Status/mood singkat -->
+                        <p class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-slate-300">
+                            💭 <?= e($tStatus) ?>
+                        </p>
+                    <?php endif; ?>
                     <?php if ($online): ?>
                         <p class="text-[11px] mt-1 <?= $online === '🟢 Online' ? 'text-emerald-400 font-semibold' : 'text-slate-500' ?>"><?= e($online) ?></p>
                     <?php endif; ?>
@@ -70,8 +94,17 @@ $hasStory = (int) ($storyCount ?? 0) > 0;
                         <?php else: ?>
                             <a href="/profil" class="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm font-semibold hover:bg-white/10 transition">✏️ Edit Profil</a>
                         <?php endif; ?>
-                        <button type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(location.href).then(()=>{this.textContent='✅ Tautan Disalin'})" class="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-sm hover:bg-white/10 transition">🔗 Salin Tautan</button>
+                        <!-- 🔗 Bagikan: Web Share API (HP) → fallback salin tautan -->
+                        <button type="button" onclick="const u=location.href,b=this;if(navigator.share){navigator.share({title:document.title,url:u}).catch(()=>{})}else if(navigator.clipboard){navigator.clipboard.writeText(u).then(()=>{b.textContent='✅ Tautan Disalin'})}" class="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-sm hover:bg-white/10 hover:text-white transition">🔗 Bagikan</button>
                     </div>
+                    <?php if ($isSelf): ?>
+                    <!-- Pintasan fitur member -->
+                    <div class="mt-3 flex items-center gap-2 justify-center sm:justify-start flex-wrap text-xs">
+                        <a href="/pencapaian" class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition">🏆 Pencapaian</a>
+                        <a href="/tersimpan" class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition">🔖 Tersimpan</a>
+                        <a href="/pengaturan" class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition">⚙️ Pengaturan</a>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <?php if ($isSelf): ?>
                 <div class="sm:ml-auto text-center shrink-0">
@@ -110,6 +143,49 @@ $hasStory = (int) ($storyCount ?? 0) > 0;
         <?php endif; ?>
 
         <?php if ($isSelf): ?>
+        <!-- 🎨 Tampilan profil: avatar + sampul upload dari HP, status, aksen -->
+        <div class="glass-card p-6 sm:p-8 border-violet-500/25" data-anim="fade-up">
+            <h2 class="font-display text-lg font-bold text-white mb-1">🎨 Tampilan Profil</h2>
+            <p class="text-[11px] text-slate-500 mb-5">Upload langsung dari galeri HP-mu — tak perlu link. Maks 5MB (JPG/PNG/WEBP/GIF).</p>
+            <form method="post" action="/profil/visual" enctype="multipart/form-data" class="space-y-5">
+                <?= csrf_field() ?>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-2">🖼️ Foto Profil (avatar)</label>
+                        <label class="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-violet-500/40 bg-violet-500/5 px-4 py-4 text-xs text-violet-200 cursor-pointer hover:bg-violet-500/10 transition">
+                            📱 <span id="avaLbl"><?= $tAva !== '' ? '✅ Sudah ada — ketuk untuk ganti' : 'Pilih foto dari HP…' ?></span>
+                            <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+                                   onchange="document.getElementById('avaLbl').textContent=this.files[0]?('✅ '+this.files[0].name.slice(0,22)):'Pilih foto dari HP…'">
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-2">🎇 Sampul Profil (banner)</label>
+                        <label class="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-cyan-500/40 bg-cyan-500/5 px-4 py-4 text-xs text-cyan-200 cursor-pointer hover:bg-cyan-500/10 transition">
+                            🌄 <span id="covLbl"><?= $tCover !== '' ? '✅ Sudah ada — ketuk untuk ganti' : 'Pilih foto dari HP…' ?></span>
+                            <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+                                   onchange="document.getElementById('covLbl').textContent=this.files[0]?('✅ '+this.files[0].name.slice(0,22)):'Pilih foto dari HP…'">
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-2">💭 Status / mood singkat</label>
+                    <input name="status_text" value="<?= e($tStatus) ?>" maxlength="60" placeholder="Contoh: lagi push rank 🎮🔥" class="form-input w-full text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-2">🎨 Warna aksen profil</label>
+                    <div class="flex gap-2.5 flex-wrap">
+                        <?php foreach (['#a78bfa' => 'Nebula', '#22d3ee' => 'Cyan', '#4ade80' => 'Lime', '#f472b6' => 'Pink', '#fbbf24' => 'Emas', '#f87171' => 'Magma'] as $hex => $nm): ?>
+                            <label class="cursor-pointer" title="<?= e($nm) ?>">
+                                <input type="radio" name="accent" value="<?= e($hex) ?>" class="peer sr-only" <?= $tAccent === $hex ? 'checked' : '' ?>>
+                                <span class="block w-9 h-9 rounded-full border-2 border-transparent peer-checked:border-white peer-checked:scale-110 transition" style="background:<?= e($hex) ?>; box-shadow:0 0 14px <?= e($hex) ?>66"></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 font-semibold text-white text-sm hover:opacity-90 transition shadow-lg shadow-fuchsia-600/25">Simpan Tampilan ✨</button>
+            </form>
+        </div>
+
         <!-- Edit profil -->
         <div class="glass-card p-6 sm:p-8" data-anim="fade-up">
             <h2 class="font-display text-lg font-bold text-white mb-5">✏️ Edit Profil</h2>

@@ -326,6 +326,37 @@ final class User
     }
 
     /** Tandai user sedang aktif (status online) — dipanggil throttled dari auth_user(). */
+    /** Simpan kolom visual profil (avatar/cover/accent/status_text) — whitelist ketat. */
+    public static function setVisuals(int $id, array $cols): void
+    {
+        $allowed = ['avatar', 'cover', 'accent', 'status_text'];
+        $set = [];
+        $val = [];
+        foreach ($allowed as $col) {
+            if (array_key_exists($col, $cols)) {
+                $set[] = "{$col} = ?";
+                $val[] = $cols[$col] === '' ? null : $cols[$col];
+            }
+        }
+        if ($set === []) {
+            return;
+        }
+        $val[] = $id;
+        Database::run('UPDATE users SET ' . implode(', ', $set) . ' WHERE id = ?', $val);
+    }
+
+    /** Ganti username (sudah divalidasi unik + format oleh controller). */
+    public static function setUsername(int $id, string $username): void
+    {
+        Database::run('UPDATE users SET username = ? WHERE id = ?', [mb_strtolower($username), $id]);
+    }
+
+    /** Ganti hash password saja (username tidak disentuh). */
+    public static function setPassword(int $id, string $passwordHash): void
+    {
+        Database::run('UPDATE users SET password_hash = ? WHERE id = ?', [$passwordHash, $id]);
+    }
+
     public static function touchActivity(int $id): void
     {
         try {

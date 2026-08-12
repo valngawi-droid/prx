@@ -2,8 +2,62 @@
 <h1 class="font-display text-2xl font-bold text-white">⚙️ Pengaturan Sistem & RTP</h1>
 <p class="text-sm text-slate-500 mt-1">Total probabilitas setiap game <b>wajib 100%</b> — sistem menolak penyimpanan jika tidak valid.</p>
 
-<form method="post" action="/owner/settings" class="space-y-6 mt-6">
+<form method="post" action="/owner/settings" enctype="multipart/form-data" class="space-y-6 mt-6">
     <?= csrf_field() ?>
+
+    <!-- 🖼️ GAMBAR SITUS — tempel link ATAU upload dari HP -->
+    <div class="glass-card p-6 border-violet-500/25">
+        <h2 class="font-display font-bold text-neon-purple mb-1">🖼️ Gambar Website</h2>
+        <p class="text-[11px] text-slate-500 mb-5">Logo navbar & gambar preview share (OG) — tempel <b>link</b> atau <b>upload dari HP</b>, dua-duanya bisa.</p>
+        <div class="grid md:grid-cols-2 gap-5">
+            <?php foreach ([
+                'site_logo'     => ['🏷️ Logo Navbar', 'Tampil di samping tulisan CHIPERX (kotak, disarankan PNG transparan).'],
+                'site_og_image' => ['🔗 Gambar OG (Share Preview)', 'Gambar yang muncul saat link situs dibagikan ke WA/Discord (1200×630 ideal).'],
+            ] as $imgKey => [$imgLabel, $imgHint]):
+                $cur = trim((string) ($settings[$imgKey] ?? '')); ?>
+                <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-semibold text-white"><?= $imgLabel ?></p>
+                        <?php if ($cur !== ''): ?>
+                            <img src="<?= e($cur) ?>" alt="" class="h-9 max-w-[7rem] object-contain rounded-lg border border-white/10 bg-black/30 p-1">
+                        <?php endif; ?>
+                    </div>
+                    <p class="text-[10px] text-slate-500"><?= $imgHint ?></p>
+                    <input name="<?= e($imgKey) ?>_link" maxlength="500" value="<?= e($cur) ?>" placeholder="https://… (link gambar)" class="form-input w-full text-xs font-mono">
+                    <label class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-violet-500/40 bg-violet-500/5 px-3 py-2.5 text-[11px] text-violet-200 cursor-pointer hover:bg-violet-500/10 transition">
+                        📱 <span id="<?= e($imgKey) ?>_lbl">Upload dari HP…</span>
+                        <input type="file" name="<?= e($imgKey) ?>_file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+                               onchange="document.getElementById('<?= e($imgKey) ?>_lbl').textContent=this.files[0]?('✅ '+this.files[0].name.slice(0,20)):'Upload dari HP…'">
+                    </label>
+                    <?php if ($cur !== ''): ?>
+                        <label class="flex items-center gap-2 text-[11px] text-slate-400 cursor-pointer"><input type="checkbox" name="<?= e($imgKey) ?>_clear" class="accent-red-500"> Hapus gambar ini</label>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- 🚧 MAINTENANCE + ⚡ EVENT -->
+    <div class="grid md:grid-cols-2 gap-4">
+        <div class="glass-card p-6 border-amber-500/25">
+            <h2 class="font-display font-bold text-amber-300 mb-1">🚧 Mode Pemeliharaan</h2>
+            <p class="text-[11px] text-slate-500 mb-4">Aktif → pengunjung melihat halaman "sedang maintenance" cantik; owner & admin tetap bisa masuk.</p>
+            <label class="flex items-center gap-3 cursor-pointer select-none">
+                <input type="checkbox" name="maintenance_mode" <?= ($settings['maintenance_mode'] ?? '0') === '1' ? 'checked' : '' ?> class="accent-amber-500 w-4 h-4">
+                <span class="text-sm font-semibold <?= ($settings['maintenance_mode'] ?? '0') === '1' ? 'text-amber-300' : 'text-slate-300' ?>">Tutup situs sementara</span>
+            </label>
+            <input name="maintenance_note" value="<?= e($settings['maintenance_note'] ?? '') ?>" maxlength="190" placeholder="Catatan utk pengunjung, mis: Upgrade v3 — kembali 30 menit lagi!" class="form-input w-full text-xs mt-3">
+        </div>
+        <div class="glass-card p-6 border-emerald-500/25">
+            <h2 class="font-display font-bold text-emerald-300 mb-1">⚡ Event Pengali Koin</h2>
+            <p class="text-[11px] text-slate-500 mb-4">Semua bonus harian, quest & hadiah game dikali ini. 1 = normal · 2 = double (otomatis muncul banner event di dashboard member!).</p>
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🪙</span>
+                <input name="coin_multiplier" type="number" step="0.5" min="0.5" max="10" value="<?= e($settings['coin_multiplier'] ?? '1') ?>" class="form-input w-28 text-center text-lg font-bold text-amber-300">
+                <span class="text-xs text-slate-500">× lipat<br>(0.5 – 10)</span>
+            </div>
+        </div>
+    </div>
 
     <!-- SITUS -->
     <div class="glass-card p-6">

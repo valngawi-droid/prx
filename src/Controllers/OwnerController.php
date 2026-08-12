@@ -30,6 +30,25 @@ final class OwnerController extends Controller
 {
     public function index(Request $req): string
     {
+        // 🕐 AUTO-BACKUP harian (bila diaktifkan Owner di halaman Backup)
+        try {
+            if (Setting::get('backup_auto', '0') === '1' && Setting::get('backup_auto_last', '') !== date('Y-m-d')) {
+                Setting::set('backup_auto_last', date('Y-m-d'));
+                $sql = $this->dumpDatabase();
+                if ($sql !== null) {
+                    $dir = BASE_PATH . '/storage/backups';
+                    if (!is_dir($dir)) {
+                        @mkdir($dir, 0750, true);
+                    }
+                    $file = $dir . '/chiperx-auto-' . date('Ymd') . '.sql.gz';
+                    file_put_contents($file, gzencode($sql, 6));
+                    AuditLogger::record('owner.backup_auto', ['file' => basename($file)], 'info', (int) auth_user()['id']);
+                }
+            }
+        } catch (\Throwable) {
+            // jangan ganggu pembukaan panel
+        }
+
         // Data grafik 7 hari terakhir: pendaftaran baru & transaksi sukses
         $labels = $regSeries = $txSeries = [];
         try {
@@ -114,13 +133,27 @@ final class OwnerController extends Controller
     public function backupCreate(Request $req): Response
     {
         $this->guardCsrf();
-        $cfg = Config::database();
         $dir = BASE_PATH . '/storage/backups';
         if (!is_dir($dir)) {
             @mkdir($dir, 0750, true);
         }
+        $sql = $this->dumpDatabase();
+        if ($sql === null) {
+            flash('error', 'Dump gagal/kosong — cek kredensial DB & status MariaDB (mysqldump terpasang?).');
+            return redirect('/owner/backups');
+        }
         $file = $dir . '/chiperx-' . date('Ymd-His') . '.sql.gz';
-        $bin  = null;
+        file_put_contents($file, gzencode($sql, 6));
+        AuditLogger::record('owner.backup_create', ['file' => basename($file)], 'critical', (int) auth_user()['id'], $req->ip());
+        flash('success', 'Backup dibuat: ' . basename($file) . ' (' . round(filesize($file) / 1024, 1) . ' KB) 💾');
+        return redirect('/owner/backups');
+    }
+
+    /** Dump SQL database via mysqldump/mariadb-dump → string|null. */
+    private function dumpDatabase(): ?string
+    {
+        $cfg = Config::database();
+        $bin = null;
         foreach (['mysqldump', 'mariadb-dump'] as $cand) {
             $p = trim((string) @shell_exec('command -v ' . $cand . ' 2>/dev/null'));
             if ($p !== '') {
@@ -129,8 +162,7 @@ final class OwnerController extends Controller
             }
         }
         if ($bin === null) {
-            flash('error', 'mysqldump tidak ditemukan — jalankan: pkg install mariadb');
-            return redirect('/owner/backups');
+            return null;
         }
         $cmd = sprintf(
             '%s -h%s -P%s -u%s -p%s %s --single-transaction --quick 2>/dev/null',
@@ -142,14 +174,7 @@ final class OwnerController extends Controller
             escapeshellarg((string) $cfg['name'])
         );
         $sql = (string) @shell_exec($cmd);
-        if (strlen($sql) < 200) {
-            flash('error', 'Dump gagal/kosong — cek kredensial DB & status MariaDB.');
-            return redirect('/owner/backups');
-        }
-        file_put_contents($file, gzencode($sql, 6));
-        AuditLogger::record('owner.backup_create', ['file' => basename($file)], 'critical', (int) auth_user()['id'], $req->ip());
-        flash('success', 'Backup dibuat: ' . basename($file) . ' (' . round(strlen(gzencode($sql, 6)) / 1024, 1) . ' KB) 💾');
-        return redirect('/owner/backups');
+        return strlen($sql) >= 200 ? $sql : null;
     }
 
     /** GET /owner/backups/{file}/download — unduh cadangan (owner only). */
@@ -170,13 +195,142 @@ final class OwnerController extends Controller
 
     // =================== 🧯 FIREWALL (anti-deface/hack) ===================
 
+    /** POST /owner/backups/restore — 🔁 kembalikan DB dari file .sql.gz (ketik RESTORE). */
+    public function backupRestore(Request $req): Response
+    {
+        $this->guardCsrf();
+        $actor = auth_user();
+        if ($req->str('confirm', '', 12) !== 'RESTORE') {
+            flash('error', 'Ketik RESTORE persis untuk konfirmasi — tindakan ini menimpa database!');
+            return redirect('/owner/backups');
+        }
+        $name = basename((string) $req->str('file', '', 90));
+        if (!preg_match('/^[a-zA-Z0-9\-_.]+\.sql\.gz$/', $name)) {
+            flash('error', 'Nama file tidak sah.');
+            return redirect('/owner/backups');
+        }
+        $path = BASE_PATH . '/storage/backups/' . $name;
+        if (!is_file($path)) {
+            flash('error', 'File backup tidak ditemukan.');
+            return redirect('/owner/backups');
+        }
+        $cfg = Config::database();
+        // Cari klien mysql/mariadb
+        $bin = null;
+        foreach (['mariadb', 'mysql'] as $cand) {
+            $p = trim((string) @shell_exec('command -v ' . $cand . ' 2>/dev/null'));
+            if ($p !== '') {
+                $bin = $cand;
+                break;
+            }
+        }
+        if ($bin === null) {
+            flash('error', 'Klien mysql/mariadb tidak ditemukan — jalankan: pkg install mariadb');
+            return redirect('/owner/backups');
+        }
+        $cmd = sprintf(
+            'gunzip -c %s | %s -h%s -P%s -u%s -p%s %s 2>&1',
+            escapeshellarg($path),
+            $bin,
+            escapeshellarg((string) $cfg['host']),
+            escapeshellarg((string) $cfg['port']),
+            escapeshellarg((string) $cfg['user']),
+            escapeshellarg((string) $cfg['pass']),
+            escapeshellarg((string) $cfg['name'])
+        );
+        $out = (string) @shell_exec($cmd);
+        AuditLogger::record('owner.backup_restore', ['file' => $name, 'by' => $actor['email']], 'critical', (int) $actor['id'], $req->ip());
+        DiscordWebhook::send('🔁 Database DIPULIHKAN dari Backup', 'File: `' . $name . '`', DiscordWebhook::COLOR_DANGER, [
+            ['name' => 'Oleh', 'value' => (string) $actor['email'], 'inline' => true],
+            ['name' => 'Waktu', 'value' => date('d M Y H:i') . ' WIB', 'inline' => true],
+        ]);
+        flash($out === '' ? 'success' : 'warning', $out === ''
+            ? 'Database berhasil dipulihkan dari ' . $name . ' ✅ Muat ulang halaman ini.'
+            : 'Restore selesai dengan pesan: ' . mb_substr($out, 0, 300));
+        return redirect('/owner/backups');
+    }
+
+    /** POST /owner/backups/auto — 🕐 aktif/matikan auto-backup harian. */
+    public function backupAutoToggle(Request $req): Response
+    {
+        $this->guardCsrf();
+        Setting::set('backup_auto', $req->input('on') !== null ? '1' : '0');
+        Setting::flush();
+        flash('success', $req->input('on') !== null
+            ? 'Auto-backup HARIAN aktif — dibuat otomatis saat Owner membuka panel tiap hari. 🕐💾'
+            : 'Auto-backup harian dimatikan.');
+        return redirect('/owner/backups');
+    }
+
+    /** POST /owner/clean — 🧹 pembersih data sekali klik. */
+    public function clean(Request $req): Response
+    {
+        $this->guardCsrf();
+        $actor = auth_user();
+        $db    = \ChiperX\Core\Database::class;
+        $steps = [];
+        $try = static function (string $label, callable $fn) use (&$steps): void {
+            try {
+                $n = $fn();
+                $steps[] = $label . ': ' . $n;
+            } catch (\Throwable) {
+                $steps[] = $label . ': dilewati';
+            }
+        };
+        $try('Stories kedaluwarsa', static fn () => $db::run('DELETE FROM stories WHERE expires_at < NOW()')->rowCount());
+        $try('Notifikasi >30 hari', static fn () => $db::run('DELETE FROM notifications WHERE created_at < NOW() - INTERVAL 30 DAY')->rowCount());
+        $try('Jurnal ancaman >30 hari', static fn () => $db::run('DELETE FROM threat_log WHERE created_at < NOW() - INTERVAL 30 DAY')->rowCount());
+        $try('Shoutbox >7 hari', static fn () => $db::run('DELETE FROM shouts WHERE created_at < NOW() - INTERVAL 7 DAY')->rowCount());
+        $try('Rate-limit kemarin', static fn () => $db::run('DELETE FROM fw_rate WHERE bucket < ?', [date('YmdHi', strtotime('-2 hours'))])->rowCount());
+        $try('File tmp upload', static fn () => \ChiperX\Services\UploadService::pruneTmp(3600));
+
+        AuditLogger::record('owner.cleanup', ['steps' => $steps], 'warning', (int) $actor['id'], $req->ip());
+        flash('success', 'Pembersihan selesai 🧹✨ — ' . implode(' · ', $steps) . ' dihapus.');
+        return redirect('/owner/firewall');
+    }
+
+    /** GET /owner/export/{what}.csv — ⬇️ ekspor logs & threat log. */
+    public function exportCsv(Request $req, array $params): Response
+    {
+        $what = (string) ($params['what'] ?? '');
+        switch ($what) {
+            case 'logs':
+                $head = ['ID', 'User ID', 'Aksi', 'Level', 'IP', 'Waktu'];
+                $rows = \ChiperX\Core\Database::all('SELECT id, user_id, action, level, ip, created_at FROM logs ORDER BY id DESC LIMIT 5000');
+                break;
+            case 'threats':
+                $head = ['ID', 'IP', 'Level', 'Pola', 'URI', 'Agen', 'Waktu'];
+                $rows = \ChiperX\Core\Database::all('SELECT id, ip, level, pattern, uri, agent, created_at FROM threat_log ORDER BY id DESC LIMIT 5000');
+                break;
+            default:
+                flash('error', 'Jenis ekspor tidak dikenal.');
+                return redirect('/owner');
+        }
+        AuditLogger::record('owner.export_csv', ['what' => $what], 'warning', (int) auth_user()['id'], $req->ip());
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="chiperx-' . $what . '-' . date('Ymd-His') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF");
+        fputcsv($out, $head);
+        foreach ($rows as $row) {
+            fputcsv($out, array_values($row));
+        }
+        fclose($out);
+        exit;
+    }
+
     public function firewall(Request $req): string
     {
         $bans = []; $threats = []; $stats = ['active' => 0, 'permanent' => 0, 'threats24h' => 0, 'critical24h' => 0];
+        $chart7 = [];
         try {
             $bans    = \ChiperX\Services\Firewall::bannedList();
             $threats = \ChiperX\Services\Firewall::threats(60);
             $stats   = \ChiperX\Services\Firewall::stats();
+            $chart7  = \ChiperX\Core\Database::all(
+                "SELECT DATE(created_at) AS d, COUNT(*) AS c, COALESCE(SUM(level = 'critical'),0) AS crit
+                 FROM threat_log WHERE created_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE(created_at)"
+            );
         } catch (\Throwable) {
             flash('warning', 'Tabel firewall belum ada — jalankan migrasi 010 dulu ya.');
         }
@@ -185,6 +339,7 @@ final class OwnerController extends Controller
             'bans'    => $bans,
             'threats' => $threats,
             'stats'   => $stats,
+            'chart7'  => $chart7,
         ]);
     }
 
@@ -786,6 +941,50 @@ final class OwnerController extends Controller
         if ($req->input('hero_desc') !== null) {
             Setting::set('hero_desc', $req->str('hero_desc', '', 300));
         }
+
+        // 🖼️ GAMBAR SITUS (logo + OG image): tempel LINK atau UPLOAD dari HP
+        foreach (['site_logo' => 'Logo situs', 'site_og_image' => 'Gambar OG (preview share)'] as $imgKey => $label) {
+            if ($req->input($imgKey . '_clear') !== null) {
+                Setting::set($imgKey, '');
+            } else {
+                $link = trim($req->str($imgKey . '_link', '', 500));
+                if ($link !== '') {
+                    if (!preg_match('~^https?://~i', $link)) {
+                        flash('error', $label . ': link harus diawali http(s)://');
+                        return redirect('/owner/settings');
+                    }
+                    Setting::set($imgKey, $link);
+                }
+                $f = $_FILES[$imgKey . '_file'] ?? null;
+                if ($f && ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                    try {
+                        $nm = \ChiperX\Services\UploadService::saveImage($f, 'situs', 4);
+                        Setting::set($imgKey, \ChiperX\Services\UploadService::publicUrl('situs', $nm));
+                    } catch (\RuntimeException $e) {
+                        flash('error', $label . ': ' . $e->getMessage());
+                        return redirect('/owner/settings');
+                    }
+                }
+            }
+        }
+
+        // 🚧 Mode pemeliharaan + ⚡ pengali koin event
+        $wasMaint = Setting::get('maintenance_mode', '0') === '1';
+        $nowMaint = $req->input('maintenance_mode') !== null;
+        Setting::set('maintenance_mode', $nowMaint ? '1' : '0');
+        if ($req->input('maintenance_note') !== null) {
+            Setting::set('maintenance_note', $req->str('maintenance_note', '', 190));
+        }
+        if ($nowMaint !== $wasMaint) {
+            DiscordWebhook::send(
+                $nowMaint ? '🚧 Mode Pemeliharaan AKTIF' : '✅ Mode Pemeliharaan SELESAI',
+                $nowMaint ? 'Situs ditutup sementara untuk umum — staf tetap bisa akses.' : 'Situs kembali online untuk semua pengunjung.',
+                $nowMaint ? DiscordWebhook::COLOR_WARNING : DiscordWebhook::COLOR_SUCCESS,
+                [['name' => 'Oleh', 'value' => (string) $actor['email'], 'inline' => true]]
+            );
+        }
+        $mult = (float) str_replace(',', '.', $req->str('coin_multiplier', '1', 6));
+        Setting::set('coin_multiplier', (string) max(0.5, min(10.0, $mult)));
 
         // Kredensial gerbang rahasia /zszdgj/login — password di-hash bcrypt,
         // nilai mentah TIDAK PERNAH disimpan di mana pun.

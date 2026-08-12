@@ -2,6 +2,25 @@
 <h1 class="font-display text-2xl font-bold text-white">👋 Halo, <?= e($user['name']) ?>!</h1>
 <p class="text-sm text-slate-500 mt-1">Member sejak <?= e(date('d M Y', strtotime($user['created_at']))) ?> · Login terakhir <?= e($user['last_login'] ? waktu_lalu($user['last_login']) : '-') ?></p>
 
+<?php if (($coinMult ?? 1) > 1): ?>
+    <!-- ⚡ BANNER EVENT PENGALI KOIN (diaktifkan Owner) -->
+    <div class="mt-4 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-fuchsia-500/10 px-5 py-4 flex items-center gap-3 shadow-[0_0_30px_rgba(251,191,36,.15)]" data-anim="fade-up">
+        <span class="text-2xl animate-bounce">⚡</span>
+        <div>
+            <p class="font-display font-bold text-amber-200 text-sm">EVENT KOIN ×<?= e(rtrim(rtrim(number_format((float) $coinMult, 2), '0'), '.')) ?> SEDANG AKTIF!</p>
+            <p class="text-[11px] text-amber-200/70">Semua bonus harian, quest & hadiah game dilipatgandakan — gas main sekarang! 🎰</p>
+        </div>
+    </div>
+<?php endif; ?>
+
+<!-- Pintasan fitur member -->
+<div class="mt-4 flex items-center gap-2 flex-wrap text-xs" data-anim="fade-up">
+    <a href="/tools" class="px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition">🚀 Tools AI</a>
+    <a href="/pencapaian" class="px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition">🏆 Pencapaian</a>
+    <a href="/tersimpan" class="px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition">🔖 Tersimpan</a>
+    <a href="/pengaturan" class="px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition">⚙️ Pengaturan</a>
+</div>
+
 <!-- Kartu statistik -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
     <div class="glass-card p-5">
@@ -289,6 +308,36 @@
             </div>
         <?php endforeach; ?>
     </div>
+</div>
+
+<!-- 📊 GRAFIK KOIN 7 HARI (dari game) -->
+<div class="glass-card p-6 mt-6 border-cyan-500/20" data-anim="fade-up">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display font-bold text-white">📈 Koin dari Game — 7 Hari Terakhir</h2>
+        <span class="text-[10px] text-slate-500 uppercase tracking-widest">real-time</span>
+    </div>
+    <?php
+    $weekMap = [];
+    foreach ($coinWeek ?? [] as $row) { $weekMap[(string) $row['d']] = (int) $row['total']; }
+    $maxDay = max(1, max($weekMap ?: [0]));
+    $totalWeek = array_sum($weekMap);
+    ?>
+    <div class="flex items-end gap-2 sm:gap-3 h-32">
+        <?php for ($i = 6; $i >= 0; $i--):
+            $dayKey = date('Y-m-d', strtotime("-{$i} days"));
+            $val    = $weekMap[$dayKey] ?? 0;
+            $h      = $val > 0 ? max(8, (int) round($val / $maxDay * 100)) : 4;
+            $label  = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'][(int) date('w', strtotime($dayKey))];
+            $today  = $i === 0;
+        ?>
+            <div class="flex-1 flex flex-col items-center gap-1.5 min-w-0" title="<?= e(date('d M', strtotime($dayKey))) ?>: +<?= number_format($val) ?> koin">
+                <span class="text-[9px] font-bold <?= $val > 0 ? 'text-cyan-300' : 'text-slate-600' ?>"><?= $val > 0 ? '+' . singkat($val) : '·' ?></span>
+                <div class="w-full rounded-t-lg <?= $val > 0 ? 'bg-gradient-to-t from-violet-600/70 to-cyan-400/80 shadow-[0_0_16px_rgba(34,211,238,.35)]' : 'bg-white/5' ?> <?= $today ? 'ring-1 ring-cyan-400/60' : '' ?> transition-all duration-500" style="height: <?= $h ?>%"></div>
+                <span class="text-[9px] <?= $today ? 'text-cyan-300 font-bold' : 'text-slate-500' ?>"><?= e($label) ?></span>
+            </div>
+        <?php endfor; ?>
+    </div>
+    <p class="text-[11px] text-slate-500 mt-3">Total minggu ini: <b class="text-amber-300">+<?= e(number_format($totalWeek)) ?> koin</b> 🪙 — main tiap hari biar grafiknya terus menanjak!</p>
 </div>
 
 <!-- Riwayat game -->

@@ -47,6 +47,7 @@ final class CodexApi
                     ['text', 'Teks', 'text', true, 'Hello World 🎨'],
                     ['theme', 'Tema', 'select', true, '', ['white', 'green']],
                     ['mode', 'Posisi teks', 'select', true, '', ['left', 'center', 'right']],
+                    ['blur', 'Efek blur (0-10)', 'text', false, '3'],
                 ],
             ],
             'createlogo' => [
@@ -100,25 +101,25 @@ final class CodexApi
                 'endpoint' => '/api/hdvidio/ai-upscale-vidio', 'method' => 'GET',
                 'payload' => ['resolution' => '1080p'],
                 'fields' => [
-                    ['url', 'Link video (mp4)', 'url', true, 'https://…/video.mp4'],
+                    ['url', 'Video (mp4)', 'url', true, 'https://…/video.mp4 — atau upload dari HP 👇', null, 'video'],
                     ['resolution', 'Resolusi', 'select', true, '', ['1080p', '720p']],
                 ],
             ],
             'winkhd' => [
                 'name' => 'Wink HD Video', 'icon' => '✨', 'cat' => 'HD Enhancer',
                 'endpoint' => '/api/hdvidio/wink-hd-video', 'method' => 'POST', 'payload' => [],
-                'fields' => [['url', 'Link video (mp4)', 'url', true, 'https://…/video.mp4']],
+                'fields' => [['url', 'Video (mp4)', 'url', true, 'https://…/video.mp4 — atau upload dari HP 👇', null, 'video']],
             ],
             'hdphoto' => [
                 'name' => 'HD-in Foto (AI Enhance)', 'icon' => '🖼️', 'cat' => 'HD Enhancer',
                 'endpoint' => '/api/imagehd/ai-enhance', 'method' => 'GET', 'payload' => [],
-                'fields' => [['url', 'Link foto', 'url', true, 'https://i.pinimg.com/….jpg']],
+                'fields' => [['url', 'Foto yang mau di-HD-kan', 'url', true, 'https://i.pinimg.com/….jpg — atau upload dari HP 👇', null, 'image']],
             ],
             // ─────────────────────── 🎭 FA MAKER ───────────────────────
             'afinitas-ml' => [
                 'name' => 'Fake Afinitas ML', 'icon' => '⚔️', 'cat' => 'Fake Maker',
                 'endpoint' => '/api/maker/fake-afinitas-ml', 'method' => 'POST', 'payload' => [],
-                'fields' => [['ppurl', 'Link foto profil', 'url', true, 'https://….jpg']],
+                'fields' => [['ppurl', 'Foto profil', 'url', true, 'https://….jpg — atau upload dari HP 👇', null, 'image']],
             ],
             'profile-ff' => [
                 'name' => 'Fake Profil FF', 'icon' => '🔫', 'cat' => 'Fake Maker',
@@ -134,7 +135,8 @@ final class CodexApi
                 'payload' => ['duration' => '00:00'],
                 'fields' => [
                     ['name', 'Nama kontak', 'text', true, 'Sayangku ❤️'],
-                    ['avatar', 'Link avatar (opsional)', 'url', false, 'https://…/avatar.jpg'],
+                    ['duration', 'Durasi panggilan (menit:detik)', 'text', false, '02:30'],
+                    ['avatar', 'Foto avatar', 'url', false, 'https://…/avatar.jpg — atau upload dari HP 👇', null, 'image'],
                 ],
             ],
             'fakecall-ios' => [
@@ -143,13 +145,14 @@ final class CodexApi
                 'payload' => ['duration' => '00:00'],
                 'fields' => [
                     ['name', 'Nama kontak', 'text', true, 'Sayangku ❤️'],
-                    ['avatar', 'Link avatar (opsional)', 'url', false, 'https://…/avatar.jpg'],
+                    ['duration', 'Durasi panggilan (menit:detik)', 'text', false, '02:30'],
+                    ['avatar', 'Foto avatar', 'url', false, 'https://…/avatar.jpg — atau upload dari HP 👇', null, 'image'],
                 ],
             ],
             'fakeig' => [
                 'name' => 'Fake Postingan IG', 'icon' => '📸', 'cat' => 'Fake Maker',
                 'endpoint' => '/api/maker/fakeig', 'method' => 'GET', 'payload' => [],
-                'fields' => [['pp', 'Link foto profil', 'url', true, 'https://….jpg']],
+                'fields' => [['pp', 'Foto profil', 'url', true, 'https://….jpg — atau upload dari HP 👇', null, 'image']],
             ],
             'fakenotifwa' => [
                 'name' => 'Fake Notif WA', 'icon' => '💬', 'cat' => 'Fake Maker',
@@ -157,7 +160,7 @@ final class CodexApi
                 'fields' => [
                     ['username', 'Nama pengirim', 'text', true, 'ChiperX'],
                     ['chat', 'Isi pesan', 'text', true, 'Hai! Ada kode redeem baru 🎁'],
-                    ['ppurl', 'Link foto profil', 'url', true, 'https://….jpg'],
+                    ['ppurl', 'Foto profil', 'url', true, 'https://….jpg — atau upload dari HP 👇', null, 'image'],
                     ['tanggal', 'Tanggal', 'text', true, 'Rabu, 12 Agustus'],
                     ['jam', 'Jam', 'text', true, '21.00'],
                 ],
@@ -168,14 +171,18 @@ final class CodexApi
                 'payload' => ['time' => '21.00'],
                 'fields' => [
                     ['text', 'Teks quotes', 'textarea', true, 'Tetap rendah hati 🌙'],
-                    ['image', 'Link foto latar (opsional)', 'url', false, 'https://….jpg'],
+                    ['time', 'Jam di status bar', 'text', false, '21.00'],
+                    ['image', 'Foto latar', 'url', false, 'https://….jpg — atau upload dari HP 👇', null, 'image'],
                 ],
             ],
             'iqc-pink' => [
                 'name' => 'Quotes iPhone Pink', 'icon' => '🌷', 'cat' => 'Fake Maker',
                 'endpoint' => '/api/maker/iqc-pink', 'method' => 'POST',
                 'payload' => ['time' => '22.54'],
-                'fields' => [['text', 'Teks quotes', 'textarea', true, 'Kesendirian adalah teman terbaik 😌']],
+                'fields' => [
+                    ['text', 'Teks quotes', 'textarea', true, 'Kesendirian adalah teman terbaik 😌'],
+                    ['time', 'Jam di status bar', 'text', false, '22.54'],
+                ],
             ],
             'iqc' => [
                 'name' => 'Quotes iPhone Normal', 'icon' => '🤍', 'cat' => 'Fake Maker',

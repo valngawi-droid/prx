@@ -65,6 +65,130 @@ final class ProfileController extends Controller
         return redirect('/profil');
     }
 
+    /** Preset warna aksen profil (neon aman di tema gelap). */
+    private const ACCENTS = ['#a78bfa', '#22d3ee', '#4ade80', '#f472b6', '#fbbf24', '#f87171'];
+
+    /**
+     * POST /profil/visual — 🖼️ Avatar + 🎇 Sampul (upload LANGSUNG dari HP),
+     * 💬 status/mood, 🎨 warna aksen profil.
+     */
+    public function updateVisual(Request $req): Response
+    {
+        Csrf::abortIfInvalid();
+        $user = auth_user();
+        if (!$user) {
+            return redirect('/login');
+        }
+        $uid  = (int) $user['id'];
+        $cols = [];
+
+        foreach (['avatar' => 'avatar', 'cover' => 'sampul'] as $field => $bucket) {
+            $f = $_FILES[$field] ?? null;
+            if ($f && ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                try {
+                    $cols[$field] = \ChiperX\Services\UploadService::saveImage($f, $bucket, 5);
+                } catch (\RuntimeException $e) {
+                    flash('error', ($field === 'avatar' ? 'Avatar' : 'Sampul') . ': ' . $e->getMessage());
+                    return redirect('/profil');
+                }
+            }
+        }
+        if ($req->input('status_text') !== null) {
+            $cols['status_text'] = mb_substr(trim($req->str('status_text', '', 60)), 0, 60);
+        }
+        $accent = strtolower($req->str('accent', '', 10));
+        if ($accent !== '' && in_array($accent, self::ACCENTS, true)) {
+            $cols['accent'] = $accent;
+        }
+
+        if ($cols !== []) {
+            User::setVisuals($uid, $cols);
+            AuditLogger::record('profile.update_visual', array_keys($cols), 'info', $uid, $req->ip());
+        }
+        flash('success', 'Tampilan profil diperbarui! Makin kece 😎✨');
+        return redirect('/profil');
+    }
+
+    /** GET /pengaturan — pusat kendali akun (username, password, info). */
+    public function settings(Request $req): Response|string
+    {
+        $user = auth_user();
+        if (!$user) {
+            return redirect('/login');
+        }
+        return $this->panel('profile/settings', [
+            'title' => 'Pengaturan Akun',
+            'user'  => $user,
+            'hasPassword' => (string) ($user['password_hash'] ?? '') !== '',
+        ]);
+    }
+
+    /** POST /pengaturan/username — ganti username unik. */
+    public function saveUsername(Request $req): Response
+    {
+        Csrf::abortIfInvalid();
+        $user = auth_user();
+        if (!$user) {
+            return redirect('/login');
+        }
+        $new = mb_strtolower(trim($req->str('username', '', 24)));
+        if (!preg_match('/^[a-z0-9_.]{3,20}$/', $new)) {
+            flash('error', 'Username 3-20 karakter: huruf kecil, angka, titik, atau underscore saja.');
+            return redirect('/pengaturan');
+        }
+        if ($new !== mb_strtolower((string) ($user['username'] ?? '')) && User::usernameTaken($new)) {
+            flash('error', 'Username "@' . $new . '" sudah dipakai member lain. Coba yang lain ya!');
+            return redirect('/pengaturan');
+        }
+        User::setUsername((int) $user['id'], $new);
+        AuditLogger::record('profile.change_username', ['to' => $new], 'info', (int) $user['id'], $req->ip());
+        flash('success', 'Username berhasil diganti → @' . $new . ' ✨');
+        return redirect('/pengaturan');
+    }
+
+    /** POST /pengaturan/password — ganti password (verifikasi lama bila sudah ada). */
+    public function savePassword(Request $req): Response
+    {
+        Csrf::abortIfInvalid();
+        $user = auth_user();
+        if (!$user) {
+            return redirect('/login');
+        }
+        $curHash = (string) ($user['password_hash'] ?? '');
+        $cur     = $req->str('current_password', '', 200);
+        $new     = $req->str('password', '', 200);
+        $confirm = $req->str('password_confirm', '', 200);
+
+        if ($curHash !== '' && !password_verify($cur, $curHash)) {
+            flash('error', 'Password lama salah. Coba lagi ya!');
+            return redirect('/pengaturan');
+        }
+        if (strlen($new) < 8) {
+            flash('error', 'Password baru minimal 8 karakter.');
+            return redirect('/pengaturan');
+        }
+        if ($new !== $confirm) {
+            flash('error', 'Konfirmasi password tidak sama.');
+            return redirect('/pengaturan');
+        }
+        User::setPassword((int) $user['id'], password_hash($new, User::hashAlgo()));
+        AuditLogger::record('profile.change_password', [], 'warning', (int) $user['id'], $req->ip());
+        flash('success', 'Password berhasil diganti! Akun makin aman 🔐');
+        return redirect('/pengaturan');
+    }
+
+    /** GET /pencapaian — galeri achievement dengan status terbuka/terkunci. */
+    public function achievements(Request $req): string
+    {
+        $user = auth_user();
+        return $this->panel('dashboard/achievements', [
+            'title'      => 'Pencapaian Saya',
+            'badges'     => \ChiperX\Models\Achievement::withUnlockStatus((int) $user['id']),
+            'badgeCount' => \ChiperX\Models\Achievement::unlockedCount((int) $user['id']),
+            'badgeTotal' => \ChiperX\Models\Achievement::totalActive(),
+        ]);
+    }
+
     /** GET /u/{username} (lamanet) → alihkan ke format sosial /profil/@username. */
     public function legacyRedirect(Request $req, array $params): Response
     {
@@ -82,6 +206,18 @@ final class ProfileController extends Controller
         }
         $me = auth_user();
         $tid = (int) $target['id'];
+        // ⚡ AUTO-FIX profil OWNER yang masih default ("Escape the Ordinary"): pasang preset premium dev
+        if (($target['role'] ?? '') === 'owner'
+            && trim((string) ($target['avatar'] ?? '')) === ''
+            && str_contains(strtolower((string) ($target['bio'] ?? '')), 'escape the ordinary')) {
+            User::setVisuals($tid, [
+                'avatar'      => 'owner.webp',
+                'cover'       => 'owner-cover.webp',
+                'status_text' => 'Halo, saya Dev / Super Owner AI-V Technology 🚀',
+                'accent'      => '#22d3ee',
+            ]);
+            $target = User::find($tid) ?? $target;
+        }
         return $this->view('profile/show', [
             'title'      => $target['name'],
             'p'          => $this->stats($tid),

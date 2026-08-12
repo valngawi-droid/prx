@@ -9,6 +9,10 @@
     <?php
     $siteDesc  = (string) \ChiperX\Models\Setting::get('hero_desc', 'ChiperX — platform komunitas digital: mini games, redeem center & store premium.');
     $canonical = \ChiperX\Core\Config::appUrl() . (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+    // 🖼️ Gambar website kustom (owner > Setting): logo navbar + thumbnail share
+    $siteLogo = trim((string) \ChiperX\Models\Setting::get('site_logo', ''));
+    $ogImage  = trim((string) \ChiperX\Models\Setting::get('site_og_image', ''));
+    if ($ogImage === '') { $ogImage = \ChiperX\Core\Config::appUrl() . '/assets/icons/icon-512.png'; }
     ?>
     <meta name="description" content="<?= e($siteDesc) ?>">
     <link rel="canonical" href="<?= e($canonical) ?>">
@@ -18,7 +22,7 @@
     <meta property="og:title" content="<?= e(($title ?? 'ChiperX') . ' — ChiperX') ?>">
     <meta property="og:description" content="<?= e($siteDesc) ?>">
     <meta property="og:url" content="<?= e($canonical) ?>">
-    <meta property="og:image" content="<?= e(\ChiperX\Core\Config::appUrl() . '/assets/icons/icon-512.png') ?>">
+    <meta property="og:image" content="<?= e($ogImage) ?>">
     <meta name="twitter:card" content="summary">
     <!-- PWA + ikon -->
     <link rel="icon" type="image/png" href="/assets/icons/icon-192.png">
@@ -60,8 +64,11 @@
 <!-- NAVBAR glassmorphism -->
 <nav class="fixed top-0 inset-x-0 z-40 backdrop-blur-xl bg-slate-900/60 border-b border-white/10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <a href="/" class="font-display font-bold text-xl tracking-widest text-white">
-            CHIPER<span class="text-neon-cyan drop-shadow-[0_0_10px_rgba(34,211,238,.8)]">X</span>
+        <a href="/" class="font-display font-bold text-xl tracking-widest text-white flex items-center gap-2">
+            <?php if ($siteLogo !== ''): ?>
+                <img src="<?= e($siteLogo) ?>" alt="Logo" class="h-8 w-8 rounded-xl object-contain drop-shadow-[0_0_10px_rgba(34,211,238,.5)]">
+            <?php endif; ?>
+            <span>CHIPER<span class="text-neon-cyan drop-shadow-[0_0_10px_rgba(34,211,238,.8)]">X</span></span>
         </a>
         <div class="hidden md:flex items-center gap-7 text-sm font-medium">
             <a href="/" class="hover:text-neon-cyan transition">Beranda</a>

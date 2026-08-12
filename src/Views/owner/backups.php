@@ -23,10 +23,32 @@
                     </div>
                     <a href="/owner/backups/<?= e(rawurlencode($f['name'])) ?>/download"
                        class="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-bold hover:bg-emerald-500/25 transition">⬇ Unduh</a>
+                    <!-- 🔁 Restore 1-klik (ketik RESTORE) -->
+                    <form method="post" action="/owner/backups/restore"
+                          onsubmit="const k=prompt('Ketik RESTORE untuk memulihkan database dari <?= e($f['name']) ?>\n\nPERINGATAN: data saat ini akan DITIMPA!');if(k!=='RESTORE')return false;this.querySelector('[name=confirm]').value=k;">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="file" value="<?= e($f['name']) ?>">
+                        <input type="hidden" name="confirm" value="">
+                        <button class="px-4 py-2 rounded-xl bg-red-500/10 border border-red-400/30 text-red-300 text-xs font-bold hover:bg-red-500/20 transition" title="Pulihkan database dari file ini">🔁 Restore</button>
+                    </form>
                 </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
+</div>
+
+<!-- 🕐 AUTO-BACKUP HARIAN -->
+<div class="glass-card p-5 mt-6 border-cyan-500/25">
+    <form method="post" action="/owner/backups/auto" class="flex items-center gap-4 flex-wrap">
+        <?= csrf_field() ?>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-white">🕐 Auto-Backup Harian</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">Otomasi: setiap hari, saat Owner pertama kali membuka panel, backup <code class="text-neon-cyan">chiperx-auto-YYYYMMDD.sql.gz</code> dibuat sendiri.</p>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold <?= (\ChiperX\Models\Setting::get('backup_auto', '0') === '1') ? 'text-emerald-300' : 'text-slate-400' ?>">
+            <input type="checkbox" name="on" <?= (\ChiperX\Models\Setting::get('backup_auto', '0') === '1') ? 'checked' : '' ?> class="accent-emerald-500 w-4 h-4" onchange="this.form.submit()"> AKTIF
+        </label>
+    </form>
 </div>
 
 <div class="glass-card p-5 mt-6 border-amber-500/20 bg-amber-500/5">

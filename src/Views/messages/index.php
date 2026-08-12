@@ -19,8 +19,8 @@
     <div class="glass-card divide-y divide-white/5 overflow-hidden" data-anim="fade-up">
         <?php foreach ($convs as $c): ?>
             <a href="/pesan/<?= e(rawurlencode((string) $c['username'])) ?>" class="flex items-center gap-3 p-4 hover:bg-white/[0.04] transition">
-                <span class="relative shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900">
-                    <?= e(strtoupper(mb_substr((string) $c['name'], 0, 1))) ?>
+                <span class="relative shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900 overflow-hidden">
+                    <?php if (!empty($c['avatar'])): ?><img src="/media/avatar/<?= e((string) $c['avatar']) ?>" alt="" class="w-full h-full object-cover"><?php else: ?><?= e(strtoupper(mb_substr((string) $c['name'], 0, 1))) ?><?php endif; ?>
                     <?php if (($c['last_activity'] ?? null) && (time() - strtotime((string) $c['last_activity']) < 180)): ?>
                         <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" title="Online"></span>
                     <?php endif; ?>

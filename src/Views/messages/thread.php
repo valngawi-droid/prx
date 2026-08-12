@@ -4,7 +4,7 @@
     <!-- kepala chat -->
     <header class="flex items-center gap-3 mb-4 glass-card p-3 sm:p-4" data-anim="fade-up">
         <a href="/pesan" class="text-slate-400 hover:text-white transition px-1 py-1" title="Kembali">←</a>
-        <a href="/profil/@<?= e($tuser) ?>" class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900"><?= e(strtoupper(mb_substr((string) $target['name'], 0, 1))) ?></a>
+        <a href="/profil/@<?= e($tuser) ?>" class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900 overflow-hidden"><?php if (!empty($target['avatar'])): ?><img src="/media/avatar/<?= e((string) $target['avatar']) ?>" alt="" class="w-full h-full object-cover"><?php else: ?><?= e(strtoupper(mb_substr((string) $target['name'], 0, 1))) ?><?php endif; ?></a>
         <div class="min-w-0 flex-1">
             <p class="font-semibold text-white text-sm truncate flex items-center gap-1.5 flex-wrap">
                 <?php if (user_is_vip($target)): ?>

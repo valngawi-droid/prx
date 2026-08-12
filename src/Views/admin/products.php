@@ -16,8 +16,24 @@
                 <td class="p-4"><b class="text-white"><?= e($p['name']) ?></b><p class="text-xs text-slate-500 truncate max-w-[16rem]"><?= e($p['description'] ?? '') ?></p></td>
                 <td class="p-4"><span class="px-2 py-1 rounded-lg text-[10px] font-bold <?= $p['type'] === 'coin_redeem' ? 'bg-amber-500/15 text-amber-300' : 'bg-cyan-500/15 text-cyan-300' ?>"><?= $p['type'] === 'coin_redeem' ? '🎁 REDEEM' : '🛒 STORE' ?></span></td>
                 <td class="p-4 font-semibold <?= $p['type'] === 'coin_redeem' ? 'text-amber-300' : 'text-neon-cyan' ?>"><?= $p['type'] === 'coin_redeem' ? '🪙 ' . number_format((int) $p['price']) : e(rupiah((int) $p['price'])) ?></td>
-                <td class="p-4 text-slate-400"><?= $p['stock'] === null ? '∞' : (int) $p['stock'] ?></td>
-                <td class="p-4"><?= $p['is_active'] ? '<span class="text-emerald-300 text-xs font-bold">● AKTIF</span>' : '<span class="text-slate-500 text-xs">○ NONAKTIF</span>' ?></td>
+                <td class="p-4 text-slate-400">
+                    <!-- 📦 Stok cepat -->
+                    <form method="post" action="/admin/products/<?= (int) $p['id'] ?>/stock" class="flex items-center gap-1">
+                        <?= csrf_field() ?>
+                        <input name="stock" type="number" min="0" max="100000" value="<?= $p['stock'] === null ? '' : (int) $p['stock'] ?>" placeholder="∞"
+                               class="form-input w-16 text-[11px] py-1 px-2" title="Stok (kosong = tak terbatas)">
+                        <button class="px-2 py-1 rounded-lg bg-white/10 border border-white/15 text-slate-300 text-[10px] hover:bg-white/15 transition" title="Simpan stok">✓</button>
+                    </form>
+                </td>
+                <td class="p-4">
+                    <!-- 🟢 Toggle aktif 1-klik -->
+                    <form method="post" action="/admin/products/<?= (int) $p['id'] ?>/toggle">
+                        <?= csrf_field() ?>
+                        <button class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition <?= $p['is_active'] ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25' : 'bg-slate-500/10 text-slate-500 border border-white/10 hover:bg-white/10' ?>" title="Ketuk untuk mengubah status">
+                            <?= $p['is_active'] ? '● AKTIF' : '○ NONAKTIF' ?>
+                        </button>
+                    </form>
+                </td>
                 <td class="p-4">
                     <div class="flex justify-end gap-2">
                         <button onclick='editProduct(<?= json_encode($p, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' class="px-3 py-1.5 rounded-lg bg-white/10 text-xs hover:bg-white/15">✏️ Edit</button>

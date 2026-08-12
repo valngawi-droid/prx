@@ -9,6 +9,7 @@ use ChiperX\Controllers\DownloadController;
 use ChiperX\Controllers\GameController;
 use ChiperX\Controllers\GateController;
 use ChiperX\Controllers\HomeController;
+use ChiperX\Controllers\MediaController;
 use ChiperX\Controllers\NotificationController;
 use ChiperX\Controllers\MessageController;
 use ChiperX\Controllers\OwnerController;
@@ -70,6 +71,12 @@ return static function (Router $r): void {
     // ---------------- PROFIL (tag role + centang biru + tags kustom) ----------------
     $r->get('/profil', [ProfileController::class, 'show'], AuthMiddleware::class);
     $r->post('/profil', [ProfileController::class, 'update'], AuthMiddleware::class);
+    $r->post('/profil/visual', [ProfileController::class, 'updateVisual'], AuthMiddleware::class); // 🖼️ avatar/sampul/status/aksen
+    // ⚙️ Pusat kendali akun + 🏆 pencapaian (v2.7)
+    $r->get('/pengaturan', [ProfileController::class, 'settings'], AuthMiddleware::class);
+    $r->post('/pengaturan/username', [ProfileController::class, 'saveUsername'], AuthMiddleware::class);
+    $r->post('/pengaturan/password', [ProfileController::class, 'savePassword'], AuthMiddleware::class);
+    $r->get('/pencapaian', [ProfileController::class, 'achievements'], AuthMiddleware::class);
     // Format sosial: /profil/@username (ala sosmed), kompatibel tanpa '@'
     $r->post('/profil/@{username}/follow', [ProfileController::class, 'follow'], AuthMiddleware::class);
     $r->get('/profil/@{username}', [ProfileController::class, 'publicShow']);
@@ -79,9 +86,13 @@ return static function (Router $r): void {
     // ---------------- KOMUNITAS v2.2 (feed ala Instagram/Facebook) ----------------
     $r->get('/komunitas', [SocialController::class, 'feed']);
     $r->get('/media/social/{file}', [SocialController::class, 'media']);
+    // 🖼️ Media unggahan generik v2.7 (tmp/avatar/sampul/situs/produk)
+    $r->get('/media/{bucket}/{file}', [MediaController::class, 'serve']);
     $r->post('/komunitas/post', [SocialController::class, 'store'], AuthMiddleware::class);
     $r->post('/komunitas/{id}/like', [SocialController::class, 'like'], AuthMiddleware::class);
     $r->post('/komunitas/{id}/comment', [SocialController::class, 'comment'], AuthMiddleware::class);
+    $r->post('/komunitas/{id}/simpan', [SocialController::class, 'bookmark'], AuthMiddleware::class);
+    $r->get('/tersimpan', [SocialController::class, 'bookmarks'], AuthMiddleware::class);
     $r->post('/komunitas/{id}/delete', [SocialController::class, 'deletePost'], AuthMiddleware::class);
     $r->post('/komunitas/komentar/{id}/delete', [SocialController::class, 'deleteComment'], AuthMiddleware::class);
 
@@ -173,8 +184,17 @@ return static function (Router $r): void {
     // Kode redeem kustom + moderasi shoutbox
     $r->get('/admin/codes', [AdminController::class, 'codes'], AdminMiddleware::class);
     $r->post('/admin/codes', [AdminController::class, 'saveCode'], AdminMiddleware::class);
+    $r->post('/admin/codes/bulk', [AdminController::class, 'codesBulk'], AdminMiddleware::class); // ⚡ massal
     $r->post('/admin/codes/{id}/toggle', [AdminController::class, 'toggleCode'], AdminMiddleware::class);
     $r->post('/admin/shouts/{id}/delete', [AdminController::class, 'shoutDelete'], AdminMiddleware::class);
+
+    // v2.7: koin user, toggle/stok produk cepat, moderasi komunitas, broadcast lonceng, ekspor CSV
+    $r->post('/admin/users/{id}/coins', [AdminController::class, 'adjustCoins'], AdminMiddleware::class);
+    $r->post('/admin/products/{id}/toggle', [AdminController::class, 'productToggle'], AdminMiddleware::class);
+    $r->post('/admin/products/{id}/stock', [AdminController::class, 'productStock'], AdminMiddleware::class);
+    $r->get('/admin/komunitas', [AdminController::class, 'community'], AdminMiddleware::class);
+    $r->post('/admin/broadcast', [AdminController::class, 'broadcastBell'], AdminMiddleware::class);
+    $r->get('/admin/export/{what}.csv', [AdminController::class, 'exportCsv'], AdminMiddleware::class);
 
     $r->get('/admin/feedback', [AdminController::class, 'feedback'], AdminMiddleware::class);
     $r->post('/admin/feedback/{id}/approve', [AdminController::class, 'approveFeedback'], AdminMiddleware::class);
@@ -186,6 +206,10 @@ return static function (Router $r): void {
     $r->post('/owner/broadcast', [OwnerController::class, 'broadcast'], OwnerMiddleware::class);
     $r->get('/owner/backups', [OwnerController::class, 'backups'], OwnerMiddleware::class);
     $r->post('/owner/backups/create', [OwnerController::class, 'backupCreate'], OwnerMiddleware::class);
+    $r->post('/owner/backups/restore', [OwnerController::class, 'backupRestore'], OwnerMiddleware::class); // 🔁 v2.7
+    $r->post('/owner/backups/auto', [OwnerController::class, 'backupAutoToggle'], OwnerMiddleware::class); // 🕐 v2.7
+    $r->post('/owner/clean', [OwnerController::class, 'clean'], OwnerMiddleware::class); // 🧹 v2.7
+    $r->get('/owner/export/{what}.csv', [OwnerController::class, 'exportCsv'], OwnerMiddleware::class); // ⬇️ v2.7
     $r->get('/owner/backups/{file}/download', [OwnerController::class, 'backupDownload'], OwnerMiddleware::class);
 
     // 🧯 Firewall (anti-deface/hack)

@@ -199,6 +199,29 @@ final class SocialController extends Controller
         return redirect('/komunitas#p' . $id);
     }
 
+    /** POST /komunitas/{id}/simpan — 🔖 bookmark postingan (toggle). */
+    public function bookmark(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $me = auth_user();
+        $id = (int) ($params['id'] ?? 0);
+        $saved = Post::toggleBookmark($id, (int) $me['id']);
+        flash('success', $saved ? 'Postingan disimpan! Cek di menu Tersimpan 🔖✨' : 'Dihapus dari Tersimpan.');
+        $ref  = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+        $path = parse_url($ref, PHP_URL_PATH) ?: '';
+        return redirect($path === '/tersimpan' ? '/tersimpan' : '/komunitas#p' . $id);
+    }
+
+    /** GET /tersimpan — galeri postingan yang di-bookmark member. */
+    public function bookmarks(Request $req): string
+    {
+        $me = auth_user();
+        return $this->panel('social/bookmarks', [
+            'title' => 'Postingan Tersimpan',
+            'posts' => Post::bookmarkFeed((int) $me['id'], 30),
+        ]);
+    }
+
     public function deletePost(Request $req, array $params): Response
     {
         $this->guardCsrf();
@@ -213,7 +236,9 @@ final class SocialController extends Controller
         Post::delete($id);
         AuditLogger::record('post.delete', ['post' => $id, 'by' => $user['email']], 'warning', (int) $user['id'], $req->ip());
         flash('success', 'Postingan dihapus. 🗑️');
-        return redirect('/komunitas');
+        // Kembali ke halaman moderasi bila dihapus dari sana (admin/owner)
+        $refPath = parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?: '';
+        return redirect($refPath === '/admin/komunitas' ? '/admin/komunitas' : '/komunitas');
     }
 
     public function deleteComment(Request $req, array $params): Response

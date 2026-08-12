@@ -10,12 +10,12 @@
     </header>
 
     <!-- FORM -->
-    <form method="post" action="/tools/<?= e($key) ?>" <?= ($tool['method'] ?? '') === 'UPLOAD' ? 'enctype="multipart/form-data"' : '' ?> class="glass-card p-5 sm:p-6 space-y-4" data-anim="fade-up" id="toolForm">
+    <form method="post" action="/tools/<?= e($key) ?>" enctype="multipart/form-data" class="glass-card p-5 sm:p-6 space-y-4" data-anim="fade-up" id="toolForm">
         <?= csrf_field() ?>
         <?php if (empty($tool['fields'])): ?>
             <p class="text-sm text-slate-400">Alat ini tidak butuh input — langsung tekan tombol di bawah! 👇</p>
         <?php endif; ?>
-        <?php foreach ($tool['fields'] as $f): [$name, $label, $type, $required] = $f; $ph = $f[4] ?? ''; $opts = $f[5] ?? []; ?>
+        <?php foreach ($tool['fields'] as $f): [$name, $label, $type, $required] = $f; $ph = $f[4] ?? ''; $opts = $f[5] ?? []; $up = $f[6] ?? null; ?>
             <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1.5"><?= e($label) ?> <?= $required ? '<span class="text-red-400">*</span>' : '<span class="text-slate-600">(opsional)</span>' ?></label>
                 <?php if ($type === 'textarea'): ?>
@@ -26,6 +26,16 @@
                     </select>
                 <?php elseif ($type === 'file'): ?>
                     <input type="file" name="<?= e($name) ?>" <?= $required ? 'required' : '' ?> class="form-input w-full text-sm file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-violet-600 file:text-white file:text-xs file:font-bold hover:file:bg-violet-500">
+                <?php elseif ($up !== null): ?>
+                    <!-- DUAL MODE: tempel LINK atau UPLOAD dari HP 📱 -->
+                    <input type="url" name="<?= e($name) ?>" placeholder="<?= e($ph) ?>" class="form-input w-full text-sm">
+                    <div class="flex items-center gap-3 my-2"><span class="h-px flex-1 bg-white/10"></span><span class="text-[10px] font-bold text-slate-500 tracking-widest">ATAU UPLOAD DARI HP</span><span class="h-px flex-1 bg-white/10"></span></div>
+                    <label class="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-violet-500/40 bg-violet-500/5 px-4 py-3.5 text-xs font-semibold text-violet-200 cursor-pointer hover:bg-violet-500/10 hover:border-violet-400/60 transition">
+                        📱 <span id="<?= e($name) ?>_lbl">Pilih <?= $up === 'video' ? 'video (MP4/WEBM)' : 'foto (JPG/PNG/WEBP/GIF)' ?> dari galeri…</span>
+                        <input type="file" name="<?= e($name) ?>_file" accept="<?= $up === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/gif' ?>" class="hidden"
+                               onchange="document.getElementById('<?= e($name) ?>_lbl').textContent=this.files[0]?('✅ '+this.files[0].name.slice(0,24)):'Pilih dari galeri…'">
+                    </label>
+                    <p class="text-[10px] text-slate-600 mt-1.5">💡 Upload diproses lewat server ChiperX lalu diteruskan otomatis ke API — file sementara dihapus berkala.</p>
                 <?php else: ?>
                     <input type="<?= $type === 'url' ? 'url' : 'text' ?>" name="<?= e($name) ?>" <?= $required ? 'required' : '' ?> placeholder="<?= e($ph) ?>" class="form-input w-full text-sm">
                 <?php endif; ?>

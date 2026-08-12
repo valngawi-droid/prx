@@ -10,8 +10,12 @@ $palettes = [
 $avatar = static function (array $u) use ($palettes): string {
     $grad = $palettes[((int) ($u['user_id'] ?? $u['id'] ?? 0)) % count($palettes)];
     $vip  = user_is_vip($u) ? ' ring-2 ring-amber-400 shadow-[0_0_14px_rgba(251,191,36,.5)]' : '';
-    return '<a href="/profil/@' . e(rawurlencode((string) $u['username'])) . '" class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br ' . $grad . $vip . ' grid place-items-center font-bold text-slate-900 text-sm shadow-lg">'
-        . e(strtoupper(mb_substr((string) $u['name'], 0, 1))) . '</a>';
+    $cls  = 'shrink-0 w-10 h-10 rounded-full bg-gradient-to-br ' . $grad . $vip . ' grid place-items-center font-bold text-slate-900 text-sm shadow-lg overflow-hidden relative';
+    $ava  = trim((string) ($u['avatar'] ?? ''));
+    $isi  = $ava !== ''
+        ? '<img src="/media/avatar/' . e($ava) . '" alt="" loading="lazy" class="w-full h-full object-cover">'
+        : e(strtoupper(mb_substr((string) $u['name'], 0, 1)));
+    return '<a href="/profil/@' . e(rawurlencode((string) $u['username'])) . '" class="' . $cls . '">' . $isi . '</a>';
 };
 // Nama dengan flair VIP emas
 $nama = static function (array $u, string $class = 'hover:text-neon-cyan transition'): string {
@@ -63,7 +67,7 @@ $nama = static function (array $u, string $class = 'hover:text-neon-cyan transit
         <form method="post" action="/komunitas/post" enctype="multipart/form-data" class="glass-card p-4 sm:p-5 mb-8" data-anim="fade-up">
             <?= csrf_field() ?>
             <div class="flex gap-3">
-                <span class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900 text-sm"><?= e(strtoupper(mb_substr((string) $me['name'], 0, 1))) ?></span>
+                <span class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900 text-sm overflow-hidden"><?php if (!empty($me['avatar'])): ?><img src="/media/avatar/<?= e((string) $me['avatar']) ?>" alt="" class="w-full h-full object-cover"><?php else: ?><?= e(strtoupper(mb_substr((string) $me['name'], 0, 1))) ?><?php endif; ?></span>
                 <textarea name="body" rows="2" maxlength="500" placeholder="Lagi apa, <?= e(explode(' ', (string) $me['name'])[0]) ?>? Bagikan ke member lain… ✨"
                           class="form-input flex-1 text-sm resize-none"></textarea>
             </div>
@@ -111,8 +115,23 @@ $nama = static function (array $u, string $class = 'hover:text-neon-cyan transit
                 <!-- isi -->
                 <p class="px-4 sm:px-5 pb-3 text-sm text-slate-200 whitespace-pre-line break-words"><?= e($p['body']) ?></p>
                 <?php if (!empty($p['image'])): ?>
-                    <img src="/media/social/<?= e($p['image']) ?>" alt="Foto postingan" loading="lazy"
-                         class="w-full max-h-[26rem] object-cover border-y border-white/5">
+                    <?php if (!empty($p['nsfw'])): ?>
+                        <!-- 🔞 NSFW: blur sampai diklik (konten sudah ditandai pemiliknya/admin) -->
+                        <div class="relative border-y border-white/5 overflow-hidden group/nsfw cursor-pointer" onclick="this.querySelector('.nsfw-layer').classList.add('hidden');this.querySelector('img').classList.remove('blur-2xl','scale-110')">
+                            <img src="/media/social/<?= e($p['image']) ?>" alt="Konten sensitif" loading="lazy"
+                                 class="w-full max-h-[26rem] object-cover blur-2xl scale-110 transition duration-500">
+                            <div class="nsfw-layer absolute inset-0 grid place-items-center bg-ink/60 backdrop-blur-sm">
+                                <span class="px-4 py-2.5 rounded-2xl bg-red-500/15 border border-red-400/40 text-center">
+                                    <span class="block text-lg">🔞</span>
+                                    <span class="block text-xs font-bold text-red-300">Konten Sensitif / NSFW</span>
+                                    <span class="block text-[10px] text-slate-400 mt-0.5">Ketuk untuk menampilkan</span>
+                                </span>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <img src="/media/social/<?= e($p['image']) ?>" alt="Foto postingan" loading="lazy"
+                             class="w-full max-h-[26rem] object-cover border-y border-white/5">
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- aksi ❤️ 💬 ↗️ -->
@@ -129,7 +148,18 @@ $nama = static function (array $u, string $class = 'hover:text-neon-cyan transit
                     <?php endif; ?>
                     <a href="#p<?= $pid ?>" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-neon-cyan transition">💬 <b><?= e(singkat((int) $p['comments_count'])) ?></b></a>
                     <button type="button" title="Bagikan" onclick="const b=this;navigator.clipboard&&navigator.clipboard.writeText(location.origin+'/komunitas#p<?= $pid ?>').then(()=>{b.classList.add('text-emerald-400');setTimeout(()=>b.classList.remove('text-emerald-400'),1200)})" class="px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-emerald-300 transition">↗️</button>
-                    <a href="/pesan/<?= e(rawurlencode((string) $p['username'])) ?>" title="Kirim DM" class="ml-auto px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-neon-purple transition">✉️</a>
+                    <?php if ($canPost): ?>
+                        <!-- 🔖 Simpan postingan (bookmark) — ada di halaman Tersimpan -->
+                        <form method="post" action="/komunitas/<?= $pid ?>/simpan" class="ml-auto">
+                            <?= csrf_field() ?>
+                            <button title="<?= !empty($p['saved']) ? 'Hapus dari Tersimpan' : 'Simpan postingan' ?>" class="px-3 py-2 rounded-xl text-sm transition <?= !empty($p['saved']) ? 'text-amber-300' : 'text-slate-400 hover:text-amber-300' ?>">
+                                <?= !empty($p['saved']) ? '🔖' : '📑' ?>
+                            </button>
+                        </form>
+                        <a href="/pesan/<?= e(rawurlencode((string) $p['username'])) ?>" title="Kirim DM" class="px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-neon-purple transition">✉️</a>
+                    <?php else: ?>
+                        <a href="/pesan/<?= e(rawurlencode((string) $p['username'])) ?>" title="Kirim DM" class="ml-auto px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-neon-purple transition">✉️</a>
+                    <?php endif; ?>
                 </div>
 
                 <!-- komentar -->

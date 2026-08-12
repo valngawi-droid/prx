@@ -12,6 +12,9 @@ $menuUser = [
     ['/redeem', '🎁', 'Redeem Center'],
     ['/store', '🛒', 'Store'],
     ['/profil', '👤', 'Profil'],
+    ['/pencapaian', '🏆', 'Pencapaian'],
+    ['/tersimpan', '🔖', 'Tersimpan'],
+    ['/pengaturan', '⚙️', 'Pengaturan'],
 ];
 $menuAdmin = [
     ['/admin', '📊', 'Ringkasan'],
@@ -22,6 +25,7 @@ $menuAdmin = [
     ['/admin/tickets', '🎫', 'Tiket Bantuan'],
     ['/admin/announcements', '📢', 'Pengumuman'],
     ['/admin/feedback', '💬', 'Moderasi Ulasan'],
+    ['/admin/komunitas', '🧹', 'Moderasi Komunitas'],
 ];
 $menuOwner = [
     ['/owner', '👑', 'Owner Control'],
@@ -43,6 +47,10 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
 // Badge pesan belum dibaca (aman bila tabel belum dimigrasi)
 $dmUnread = 0;
 try { $dmUnread = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch (\Throwable) {}
+
+// 🖼️ Logo situs kustom (diunggah owner di Setting) — fallback teks CHIPER X
+$siteLogo = '';
+try { $siteLogo = trim((string) \ChiperX\Models\Setting::get('site_logo', '')); } catch (\Throwable) {}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -70,7 +78,12 @@ try { $dmUnread = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch 
     <!-- SIDEBAR -->
     <aside class="w-64 shrink-0 hidden lg:flex flex-col border-r border-white/10 bg-slate-900/50 backdrop-blur-xl p-5 gap-1 sticky top-0 h-screen overflow-y-auto">
         <a href="/" class="font-display font-bold text-lg tracking-widest text-white px-3 py-4">
-            CHIPER<span class="text-neon-cyan drop-shadow-[0_0_10px_rgba(34,211,238,.8)]">X</span>
+            <span class="flex items-center gap-2">
+                <?php if ($siteLogo !== ''): ?>
+                    <img src="<?= e($siteLogo) ?>" alt="Logo" class="h-8 w-8 rounded-xl object-contain drop-shadow-[0_0_10px_rgba(34,211,238,.5)]">
+                <?php endif; ?>
+                <span>CHIPER<span class="text-neon-cyan drop-shadow-[0_0_10px_rgba(34,211,238,.8)]">X</span></span>
+            </span>
             <span class="block text-[10px] tracking-normal text-slate-500 font-normal mt-1 uppercase"><?= e($role) ?> panel</span>
         </a>
         <?php foreach ($menus as [$href, $icon, $label]): ?>
@@ -99,8 +112,12 @@ try { $dmUnread = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch 
         <?php endif; ?>
         <div class="mt-auto border-t border-white/10 pt-4 px-1">
             <div class="flex items-center gap-3 px-2 pb-3">
-                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900">
-                    <?= e(strtoupper(substr($u['name'], 0, 1))) ?>
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900 overflow-hidden shrink-0">
+                    <?php if (!empty($u['avatar'])): ?>
+                        <img src="/media/avatar/<?= e((string) $u['avatar']) ?>" alt="" class="w-full h-full object-cover">
+                    <?php else: ?>
+                        <?= e(strtoupper(substr($u['name'], 0, 1))) ?>
+                    <?php endif; ?>
                 </div>
                 <div class="min-w-0">
                     <p class="text-sm font-semibold truncate"><?= e($u['name']) ?></p>

@@ -1,5 +1,9 @@
 # 🚀 ChiperX — Platform Komunitas Digital Enterprise
 
+> **NEBULA v2.7** — Upload dari HP di semua Tools, Avatar & Sampul profil upload, Bookmark,
+> Pencapaian, Pengaturan Akun, 10 fitur baru untuk setiap role (user/admin/owner),
+> Mode Pemeliharaan, Event Pengali Koin, dan Gambar Website kustom (logo/OG) dari Owner.
+
 Website **ChiperX** full-stack: autentikasi **Email OTP** (tanpa password), **Mini Games** dengan
 ChiperX Coin, **Redeem Center**, **Store + Auto-Payment**, dan **Owner God Mode**
 (File Manager berbasis Monaco Editor + Discord Audit Log).

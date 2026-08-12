@@ -51,7 +51,20 @@ final class DashboardController extends Controller
             'badges'       => \ChiperX\Models\Achievement::withUnlockStatus((int) $user['id']),
             'badgeCount'   => \ChiperX\Models\Achievement::unlockedCount((int) $user['id']),
             'badgeTotal'   => \ChiperX\Models\Achievement::totalActive(),
+            'coinMult'     => self::coinMultiplier(),
+            'coinWeek'     => \ChiperX\Core\Database::all(
+                'SELECT DATE(created_at) AS d, SUM(reward) AS total FROM game_history
+                 WHERE user_id = ? AND created_at >= CURDATE() - INTERVAL 6 DAY
+                 GROUP BY DATE(created_at) ORDER BY d ASC',
+                [(int) $user['id']]
+            ),
         ]);
+    }
+
+    /** ⚡ Pengali koin event global (diatur Owner; 0.5–10×). */
+    private static function coinMultiplier(): float
+    {
+        return max(0.5, min(10.0, (float) (Setting::get('coin_multiplier', '1') ?? '1')));
     }
 
     /** POST /dashboard/claim-daily — bonus login harian (1x per hari WIB, atomik). */
@@ -65,6 +78,11 @@ final class DashboardController extends Controller
         $isVip = user_is_vip($user);
         if ($isVip) {
             $base *= 2;
+        }
+        // ⚡ Event pengali koin global (Owner)
+        $mult = self::coinMultiplier();
+        if ($mult !== 1.0) {
+            $base = (int) round($base * $mult);
         }
 
         $res = User::claimDailyStreak((int) $user['id'], $base);
@@ -82,7 +100,8 @@ final class DashboardController extends Controller
         }
         $api = ['day' => (int) $res['streak']];
         $vipTag = $isVip ? ' 💎 VIP ×2!' : '';
-        flash('success', "Hari ke-{$api['day']} beruntun! +{$res['reward']} ChiperX Coin diklaim! 🎁{$vipTag} Besok: hari ke-" . min(7, (int) $res['streak'] + 1) . ' 🔥');
+        $multTag = $mult !== 1.0 ? ' ⚡ EVENT ×' . rtrim(rtrim(number_format($mult, 2), '0'), '.') . '!' : '';
+        flash('success', "Hari ke-{$api['day']} beruntun! +{$res['reward']} ChiperX Coin diklaim! 🎁{$vipTag}{$multTag} Besok: hari ke-" . min(7, (int) $res['streak'] + 1) . ' 🔥');
         return redirect('/dashboard');
     }
 
@@ -98,7 +117,8 @@ final class DashboardController extends Controller
             flash('warning', 'Quest belum lengkap — klaim bonus harian DAN main 3 game dulu hari ini.');
             return redirect('/dashboard#quest');
         }
-        $reward = 30;
+        $mult   = self::coinMultiplier();
+        $reward = (int) round(30 * $mult);
         if (!User::claimQuestReward($uid, $reward)) {
             flash('warning', 'Quest hari ini sudah diklaim. Besok ada yang baru! ⏰');
             return redirect('/dashboard#quest');

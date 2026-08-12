@@ -16,11 +16,12 @@ final class Post
     {
         return Database::all(
             'SELECT p.id, p.user_id, p.body, p.image, p.likes_count, p.comments_count, p.created_at,
-                    u.name, u.username, u.role, u.badges,
-                    EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS liked
+                    u.name, u.username, u.role, u.badges, u.avatar,
+                    EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS liked,
+                    EXISTS(SELECT 1 FROM bookmarks bm WHERE bm.post_id = p.id AND bm.user_id = ?) AS saved
              FROM posts p JOIN users u ON u.id = p.user_id
              ORDER BY p.id DESC LIMIT ' . max(1, $limit),
-            [$viewerId]
+            [$viewerId, $viewerId]
         );
     }
 
@@ -85,11 +86,46 @@ final class Post
     public static function comments(int $postId, int $limit = 30): array
     {
         return Database::all(
-            'SELECT c.id, c.user_id, c.body, c.created_at, u.name, u.username, u.role, u.badges
+            'SELECT c.id, c.user_id, c.body, c.created_at, u.name, u.username, u.role, u.badges, u.avatar
              FROM post_comments c JOIN users u ON u.id = c.user_id
              WHERE c.post_id = ? ORDER BY c.id ASC LIMIT ' . max(1, $limit),
             [$postId]
         );
+    }
+
+    // ----------------- 🔖 BOOKMARK (simpan postingan) -----------------
+
+    /** Toggle simpan → return true bila SEKARANG tersimpan. */
+    public static function toggleBookmark(int $postId, int $userId): bool
+    {
+        $has = (int) (Database::value('SELECT COUNT(*) FROM bookmarks WHERE post_id = ? AND user_id = ?', [$postId, $userId]) ?? 0) > 0;
+        if ($has) {
+            Database::run('DELETE FROM bookmarks WHERE post_id = ? AND user_id = ?', [$postId, $userId]);
+            return false;
+        }
+        Database::run('INSERT IGNORE INTO bookmarks (user_id, post_id) VALUES (?, ?)', [$userId, $postId]);
+        return true;
+    }
+
+    /** Feed postingan yang disimpan user (untuk halaman Tersimpan). */
+    public static function bookmarkFeed(int $userId, int $limit = 30): array
+    {
+        return Database::all(
+            'SELECT p.id, p.user_id, p.body, p.image, p.likes_count, p.comments_count, p.created_at,
+                    u.name, u.username, u.role, u.badges, u.avatar,
+                    1 AS saved
+             FROM bookmarks b
+             JOIN posts p ON p.id = b.post_id
+             JOIN users u ON u.id = p.user_id
+             WHERE b.user_id = ?
+             ORDER BY b.id DESC LIMIT ' . max(1, $limit),
+            [$userId]
+        );
+    }
+
+    public static function bookmarkCount(int $userId): int
+    {
+        return (int) (Database::value('SELECT COUNT(*) FROM bookmarks WHERE user_id = ?', [$userId]) ?? 0);
     }
 
     /** Ambil satu post + pemiliknya (otorisasi like/komentar/hapus). */

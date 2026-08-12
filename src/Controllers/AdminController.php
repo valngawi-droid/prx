@@ -29,6 +29,7 @@ final class AdminController extends Controller
 {
     public function index(Request $req): string
     {
+        $db = \ChiperX\Core\Database::class;
         return $this->panel('admin/index', [
             'title'         => 'Panel Admin',
             'totalUsers'    => User::totalCount(),
@@ -38,6 +39,12 @@ final class AdminController extends Controller
             'openTickets'   => Ticket::openCount(),
             'pendingFeedback' => Feedback::pendingCount(),
             'recentTx'      => Transaction::recent(10),
+            // 📊 grafik & ekonomi koin (v2.7)
+            'chartUsers'    => $db::all('SELECT DATE(created_at) AS d, COUNT(*) AS c FROM users WHERE created_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE(created_at)'),
+            'chartTx'       => $db::all("SELECT DATE(created_at) AS d, COUNT(*) AS c FROM transactions WHERE created_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE(created_at)"),
+            'coinSupply'    => (int) ($db::value('SELECT COALESCE(SUM(coin_balance),0) FROM users') ?? 0),
+            'redeemsWeek'   => (int) ($db::value('SELECT COUNT(*) FROM redeem_code_claims WHERE created_at >= CURDATE() - INTERVAL 6 DAY') ?? 0),
+            'postsWeek'     => (int) ($db::value('SELECT COUNT(*) FROM posts WHERE created_at >= CURDATE() - INTERVAL 6 DAY') ?? 0),
         ]);
     }
 
@@ -271,10 +278,178 @@ final class AdminController extends Controller
     /** GET /admin/codes */
     public function codes(Request $req): string
     {
+        $bulk = $_SESSION['bulk_codes'] ?? null;
+        unset($_SESSION['bulk_codes']); // tampil SEKALI saja (post-redirect)
         return $this->panel('admin/codes', [
             'title' => 'Kode Redeem',
             'codes' => \ChiperX\Models\RedeemCode::all(),
+            'bulk'  => is_array($bulk) ? $bulk : [],
         ]);
+    }
+
+    /** POST /admin/codes/bulk — 🎟️ generator massal: N kode acak sekaligus. */
+    public function codesBulk(Request $req): Response
+    {
+        $this->guardCsrf();
+        $me     = auth_user();
+        $count  = max(1, min(50, (int) $req->str('count', '10', 4)));
+        $prefix = strtoupper((string) (preg_replace('/[^A-Z0-9]/', '', $req->str('prefix', 'EVENT', 12)) ?: 'EVENT'));
+        $coins  = max(1, min(100000, (int) $req->str('coins', '50', 8)));
+        $quota  = max(1, min(100000, (int) $req->str('quota', '1', 8)));
+
+        $made = [];
+        for ($i = 0; $i < $count; $i++) {
+            $code = $prefix . '-' . strtoupper(substr(bin2hex(random_bytes(5)), 0, 8));
+            $res  = \ChiperX\Models\RedeemCode::create($code, $coins, $quota, null, (int) $me['id']);
+            if ($res['ok']) {
+                $made[] = $code;
+            }
+        }
+        $_SESSION['bulk_codes'] = $made;
+        AuditLogger::record('redeem_code.bulk', ['count' => count($made), 'coins' => $coins, 'prefix' => $prefix], 'warning', (int) $me['id'], $req->ip());
+        flash($made !== [] ? 'success' : 'error', $made !== []
+            ? count($made) . ' kode massal berhasil dibuat! Salin daftarnya di bawah. 🎟️'
+            : 'Gagal membuat kode massal.');
+        return redirect('/admin/codes');
+    }
+
+    /** POST /admin/users/{id}/coins — 💰 tambah/kurangi koin user (+ notifikasi). */
+    public function adjustCoins(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $actor  = auth_user();
+        $target = User::find((int) ($params['id'] ?? 0));
+        if (!$target) {
+            flash('error', 'Pengguna tidak ditemukan.');
+            return redirect('/admin/users');
+        }
+        // Admin biasa hanya boleh menyentuh akun 'user' (admin/owner = wilayah owner)
+        if (($target['role'] ?? 'user') !== 'user' && ($actor['role'] ?? '') !== 'owner') {
+            flash('error', 'Koin sesama admin/owner hanya bisa diatur oleh Owner.');
+            return redirect('/admin/users');
+        }
+        $delta  = (int) $req->str('delta', '0', 9);
+        $reason = mb_substr(trim($req->str('reason', '', 120)), 0, 120);
+        if ($delta === 0 || abs($delta) > 100000) {
+            flash('error', 'Delta koin tidak valid (maks ±100.000, tidak boleh 0).');
+            return redirect('/admin/users');
+        }
+        if (!User::addCoins((int) $target['id'], $delta)) {
+            flash('error', 'Gagal — saldo user tidak boleh minus.');
+            return redirect('/admin/users');
+        }
+        $tanda = $delta > 0 ? '+' . number_format($delta) : '-' . number_format(abs($delta));
+        \ChiperX\Models\Notification::add(
+            (int) $target['id'],
+            ($delta > 0 ? '💰 Kamu menerima ' . $tanda . ' koin!' : '⚠️ Saldo koinmu dikurangi ' . $tanda),
+            $reason !== '' ? 'Catatan admin: ' . $reason : null,
+            '/dashboard',
+            $delta > 0 ? 'success' : 'warning'
+        );
+        AuditLogger::record('admin.coins_adjust', ['target' => $target['email'], 'delta' => $delta, 'reason' => $reason], 'warning', (int) $actor['id'], $req->ip());
+        flash('success', 'Koin ' . $target['name'] . ' berhasil diubah (' . $tanda . '). 💰');
+        return redirect('/admin/users');
+    }
+
+    /** POST /admin/products/{id}/toggle — 🟢 aktif/nonaktif produk 1-klik. */
+    public function productToggle(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $id = (int) ($params['id'] ?? 0);
+        \ChiperX\Core\Database::run('UPDATE products SET is_active = 1 - is_active WHERE id = ?', [$id]);
+        AuditLogger::record('admin.product_toggle', ['product' => $id], 'info', (int) auth_user()['id'], $req->ip());
+        flash('success', 'Status produk diubah. 🔄');
+        return redirect('/admin/products');
+    }
+
+    /** POST /admin/products/{id}/stock — 📦 atur stok cepat (kosong = tak terbatas). */
+    public function productStock(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $id    = (int) ($params['id'] ?? 0);
+        $raw   = trim($req->str('stock', '', 8));
+        $stock = $raw === '' ? null : max(0, min(100000, (int) $raw));
+        \ChiperX\Core\Database::run('UPDATE products SET stock = ? WHERE id = ?', [$stock, $id]);
+        flash('success', 'Stok produk diperbarui → ' . ($stock === null ? '∞' : (string) $stock) . ' 📦');
+        return redirect('/admin/products');
+    }
+
+    /** GET /admin/komunitas — 🧹 meja moderasi postingan terbaru. */
+    public function community(Request $req): string
+    {
+        $posts = \ChiperX\Core\Database::all(
+            'SELECT p.id, p.body, p.image, p.likes_count, p.comments_count, p.created_at,
+                    u.name, u.username, u.role
+             FROM posts p JOIN users u ON u.id = p.user_id
+             ORDER BY p.id DESC LIMIT 40'
+        );
+        return $this->panel('admin/community', [
+            'title' => 'Moderasi Komunitas',
+            'posts' => $posts,
+        ]);
+    }
+
+    /** POST /admin/broadcast — 📣 kirim notifikasi lonceng ke SEMUA member aktif. */
+    public function broadcastBell(Request $req): Response
+    {
+        $this->guardCsrf();
+        $actor = auth_user();
+        $title = mb_substr(trim($req->str('title', '', 120)), 0, 120);
+        $body  = mb_substr(trim($req->str('body', '', 300)), 0, 300);
+        if ($title === '') {
+            flash('error', 'Judul broadcast wajib diisi.');
+            return redirect('/admin/announcements');
+        }
+        $sent = 0;
+        foreach (\ChiperX\Core\Database::all("SELECT id FROM users WHERE status = 'active'") as $row) {
+            \ChiperX\Models\Notification::add((int) $row['id'], '📣 ' . $title, $body !== '' ? $body : null, '/dashboard', 'info');
+            $sent++;
+        }
+        AuditLogger::record('admin.broadcast_bell', ['title' => $title, 'sent' => $sent], 'warning', (int) $actor['id'], $req->ip());
+        \ChiperX\Services\DiscordWebhook::send('📣 Broadcast Lonceng', $title, \ChiperX\Services\DiscordWebhook::COLOR_INFO, [
+            ['name' => 'Oleh', 'value' => (string) $actor['email'], 'inline' => true],
+            ['name' => 'Terkirim', 'value' => $sent . ' member', 'inline' => true],
+        ]);
+        flash('success', "Broadcast terkirim ke lonceng {$sent} member! 📣🔔");
+        return redirect('/admin/announcements');
+    }
+
+    /** GET /admin/export/{what}.csv — ⬇️ unduh data sebagai CSV (users/transactions/codes). */
+    public function exportCsv(Request $req, array $params): Response
+    {
+        $what = (string) ($params['what'] ?? '');
+        switch ($what) {
+            case 'users':
+                $head = ['ID', 'Nama', 'Username', 'Email', 'Role', 'Status', 'Koin', 'Saldo', 'Bergabung'];
+                $rows = \ChiperX\Core\Database::all('SELECT id, name, username, email, role, status, coin_balance, balance, created_at FROM users ORDER BY id ASC');
+                break;
+            case 'transactions':
+                $head = ['ID', 'Ref', 'Email', 'Produk', 'Metode', 'Jumlah', 'Status', 'Waktu'];
+                $rows = \ChiperX\Core\Database::all(
+                    "SELECT t.id, t.gateway_ref, u.email, t.product_name, t.payment_method, t.amount, t.status, t.created_at
+                     FROM transactions t LEFT JOIN users u ON u.id = t.user_id ORDER BY t.id DESC LIMIT 5000"
+                );
+                break;
+            case 'codes':
+                $head = ['Kode', 'Koin', 'Kuota', 'Terpakai', 'Aktif', 'Kedaluwarsa', 'Dibuat'];
+                $rows = \ChiperX\Core\Database::all('SELECT code, coins, quota, used, is_active, expires_at, created_at FROM redeem_codes ORDER BY id DESC');
+                break;
+            default:
+                flash('error', 'Jenis ekspor tidak dikenal.');
+                return redirect('/admin');
+        }
+        AuditLogger::record('admin.export_csv', ['what' => $what], 'warning', (int) auth_user()['id'], $req->ip());
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="chiperx-' . $what . '-' . date('Ymd-His') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF"); // BOM — ramah Excel
+        fputcsv($out, $head);
+        foreach ($rows as $row) {
+            fputcsv($out, array_values($row));
+        }
+        fclose($out);
+        exit;
     }
 
     /** POST /admin/codes — buat kode baru. */
