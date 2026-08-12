@@ -153,3 +153,33 @@ html.js [data-anim] { opacity: 0; }  /* hanya sembunyikan bila JS aktif — tanp
 /* Target sentuh nyaman di HP */
 button, a, input, select { touch-action: manipulation; }
 input, select, textarea { font-size: 16px; } /* cegah auto-zoom iOS/Android saat fokus */
+
+/* ============== v2.2 — Rapat PC & HP (tanpa zoom) ============== */
+/* Tabel admin/panel bisa di-geser horizontal di HP, tetap lebar penuh di PC */
+@supports (selector(:has(> *))) {
+    .glass-card:has(> table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+.glass-card > table { width: 100%; min-width: 520px; }
+.glass-card > table th, .glass-card > table td { white-space: nowrap; padding: .65rem .9rem; }
+
+/* Gambar di dalam konten tak boleh meluber */
+img { max-width: 100%; height: auto; }
+
+/* Bottom-nav & spacer hormati area aman iPhone (notch bawah) */
+.bottom-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Scrollbar halus untuk area chat/feed */
+#chatList::-webkit-scrollbar, #shoutList::-webkit-scrollbar { width: 5px; }
+#chatList::-webkit-scrollbar-thumb, #shoutList::-webkit-scrollbar-thumb { background: rgba(139,92,246,.35); border-radius: 99px; }
+
+/* Fallback line-clamp (kalau util Tailwind belum termuat) */
+.line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Padding horizontal konsisten di layar sempit */
+@media (max-width: 400px) {
+    .glass-card { border-radius: 1rem; }
+}
+
+/* Efek gelembung chat masuk */
+#chatList > div { animation: msgIn .18s ease-out; }
+@keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

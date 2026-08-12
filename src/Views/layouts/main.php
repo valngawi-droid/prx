@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <script>document.documentElement.classList.add('js');</script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="<?= e(\ChiperX\Core\Csrf::token()) ?>">
     <?php
     $siteDesc  = (string) \ChiperX\Models\Setting::get('hero_desc', 'ChiperX — platform komunitas digital: mini games, redeem center & store premium.');
@@ -70,12 +70,18 @@
             <a href="/redeem" class="hover:text-neon-cyan transition">Redeem Center</a>
             <a href="/store" class="hover:text-neon-cyan transition">Store</a>
             <a href="/games" class="hover:text-neon-purple transition">🎮 Mini Games</a>
+            <a href="/komunitas" class="hover:text-neon-cyan transition">💬 Komunitas</a>
+            <a href="/members" class="hover:text-neon-cyan transition">👥 Members</a>
         </div>
         <div class="flex items-center gap-3">
-            <?php if (is_logged_in()): $u = auth_user(); $bellCount = \ChiperX\Models\Notification::unreadCount((int) $u['id']); ?>
+            <?php if (is_logged_in()): $u = auth_user(); $bellCount = \ChiperX\Models\Notification::unreadCount((int) $u['id']); $dmCount = 0; try { $dmCount = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch (\Throwable) {} ?>
                 <span class="hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
                     🪙 <b class="text-amber-300"><?= e(number_format((int) $u['coin_balance'])) ?></b>
                 </span>
+                <a href="/pesan" title="Pesan" class="relative text-slate-300 hover:text-neon-cyan transition text-base leading-none">
+                    ✉️
+                    <span class="<?= $dmCount > 0 ? '' : 'hidden' ?> absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center shadow-[0_0_10px_rgba(244,63,94,.7)]"><?= $dmCount > 99 ? '99+' : $dmCount ?></span>
+                </a>
                 <a href="/notifikasi" title="Notifikasi" class="relative text-slate-300 hover:text-neon-cyan transition text-base leading-none">
                     🔔
                     <span class="bell-badge <?= $bellCount > 0 ? '' : 'hidden' ?> absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center shadow-[0_0_10px_rgba(239,68,68,.7)]"><?= $bellCount > 99 ? '99+' : $bellCount ?></span>
@@ -92,13 +98,15 @@
             <button id="navToggle" class="md:hidden p-2 rounded-lg border border-white/10">☰</button>
         </div>
     </div>
-    <div id="navMobile" class="md:hidden hidden border-t border-white/10 bg-slate-900/90 backdrop-blur-xl px-6 py-4 space-y-3 text-sm">
-        <a href="/" class="block hover:text-neon-cyan">Beranda</a>
-        <a href="/info" class="block hover:text-neon-cyan">Informasi</a>
-        <a href="/links" class="block hover:text-neon-cyan">All Link</a>
-        <a href="/redeem" class="block hover:text-neon-cyan">Redeem Center</a>
-        <a href="/store" class="block hover:text-neon-cyan">Store</a>
-        <a href="/games" class="block hover:text-neon-cyan">Mini Games</a>
+    <div id="navMobile" class="md:hidden hidden border-t border-white/10 bg-slate-900/90 backdrop-blur-xl px-6 py-4 space-y-3 text-sm" style="padding-bottom:calc(1rem + env(safe-area-inset-bottom));">
+        <a href="/" class="block hover:text-neon-cyan py-1">Beranda</a>
+        <a href="/info" class="block hover:text-neon-cyan py-1">Informasi</a>
+        <a href="/links" class="block hover:text-neon-cyan py-1">All Link</a>
+        <a href="/komunitas" class="block hover:text-neon-cyan py-1">💬 Komunitas</a>
+        <a href="/members" class="block hover:text-neon-cyan py-1">👥 Members</a>
+        <a href="/redeem" class="block hover:text-neon-cyan py-1">Redeem Center</a>
+        <a href="/store" class="block hover:text-neon-cyan py-1">Store</a>
+        <a href="/games" class="block hover:text-neon-cyan py-1">Mini Games</a>
     </div>
 </nav>
 

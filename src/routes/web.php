@@ -10,8 +10,10 @@ use ChiperX\Controllers\GameController;
 use ChiperX\Controllers\GateController;
 use ChiperX\Controllers\HomeController;
 use ChiperX\Controllers\NotificationController;
+use ChiperX\Controllers\MessageController;
 use ChiperX\Controllers\OwnerController;
 use ChiperX\Controllers\ProfileController;
+use ChiperX\Controllers\SocialController;
 use ChiperX\Controllers\RedeemController;
 use ChiperX\Controllers\StoreController;
 use ChiperX\Controllers\WebhookController;
@@ -68,6 +70,21 @@ return static function (Router $r): void {
     $r->get('/profil', [ProfileController::class, 'show'], AuthMiddleware::class);
     $r->post('/profil', [ProfileController::class, 'update'], AuthMiddleware::class);
     $r->get('/u/{username}', [ProfileController::class, 'publicShow']);
+
+    // ---------------- KOMUNITAS v2.2 (feed ala Instagram/Facebook) ----------------
+    $r->get('/komunitas', [SocialController::class, 'feed']);
+    $r->get('/media/social/{file}', [SocialController::class, 'media']);
+    $r->post('/komunitas/post', [SocialController::class, 'store'], AuthMiddleware::class);
+    $r->post('/komunitas/{id}/like', [SocialController::class, 'like'], AuthMiddleware::class);
+    $r->post('/komunitas/{id}/comment', [SocialController::class, 'comment'], AuthMiddleware::class);
+    $r->post('/komunitas/{id}/delete', [SocialController::class, 'deletePost'], AuthMiddleware::class);
+    $r->post('/komunitas/komentar/{id}/delete', [SocialController::class, 'deleteComment'], AuthMiddleware::class);
+
+    // ---------------- PESAN PRIBADI v2.2 (DM ala WhatsApp/Telegram) ----------------
+    $r->get('/pesan', [MessageController::class, 'index'], AuthMiddleware::class);
+    $r->get('/pesan/{username}', [MessageController::class, 'thread'], AuthMiddleware::class);
+    $r->post('/pesan/{username}', [MessageController::class, 'send'], AuthMiddleware::class);
+    $r->get('/pesan/{username}/json', [MessageController::class, 'json'], AuthMiddleware::class);
 
     // ---------------- NOTIFIKASI (lonceng 🔔) ----------------
     $r->get('/notifikasi', [NotificationController::class, 'index'], AuthMiddleware::class);

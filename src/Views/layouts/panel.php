@@ -5,9 +5,12 @@ $role = $u['role'];
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $menuUser = [
     ['/dashboard', '◈', 'Dashboard'],
+    ['/komunitas', '💬', 'Komunitas'],
+    ['/pesan', '✉️', 'Pesan'],
     ['/games', '🎮', 'Mini Games'],
     ['/redeem', '🎁', 'Redeem Center'],
     ['/store', '🛒', 'Store'],
+    ['/profil', '👤', 'Profil'],
 ];
 $menuAdmin = [
     ['/admin', '📊', 'Ringkasan'],
@@ -33,13 +36,41 @@ $menuOwner = [
 $menus = $menuUser;
 if ($role === 'admin') { $menus = $menuAdmin; }
 if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
+
+// ---- Bottom nav: PINTASAN BERBEDA per peran ----
+// User  → fitur member (dasbor, komunitas, store)
+// Admin → alat kerja admin; Owner → kontrol owner + admin + pesan
+$quickNav = match ($role) {
+    'owner' => [
+        ['/owner', '👑', 'Owner'],
+        ['/admin', '📊', 'Admin'],
+        ['/komunitas', '💬', 'Komunitas'],
+        ['/pesan', '✉️', 'Pesan'],
+    ],
+    'admin' => [
+        ['/admin', '📊', 'Ringkasan'],
+        ['/admin/products', '📦', 'Produk'],
+        ['/komunitas', '💬', 'Komunitas'],
+        ['/pesan', '✉️', 'Pesan'],
+    ],
+    default => [
+        ['/dashboard', '◈', 'Dasbor'],
+        ['/komunitas', '💬', 'Komunitas'],
+        ['/store', '🛒', 'Store'],
+        ['/pesan', '✉️', 'Pesan'],
+    ],
+};
+
+// Badge pesan belum dibaca (aman bila tabel belum dimigrasi)
+$dmUnread = 0;
+try { $dmUnread = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch (\Throwable) {}
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <script>document.documentElement.classList.add('js');</script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="<?= e(\ChiperX\Core\Csrf::token()) ?>">
     <link rel="icon" type="image/png" href="/assets/icons/icon-192.png">
     <link rel="manifest" href="/manifest.webmanifest">
@@ -68,8 +99,25 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
                <?= $path === $href ? 'bg-gradient-to-r from-violet-600/40 to-cyan-500/20 text-white border border-violet-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-white' ?>">
                 <span><?= $icon ?></span> <?= e($label) ?>
+                <?php if ($href === '/pesan' && $dmUnread > 0): ?>
+                    <span class="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center"><?= $dmUnread > 99 ? '99+' : $dmUnread ?></span>
+                <?php endif; ?>
             </a>
         <?php endforeach; ?>
+        <?php if (in_array($role, ['admin', 'owner'], true)): ?>
+            <!-- AREA MEMBER — terpisah dari panel admin/owner -->
+            <p class="mt-4 mb-1 px-3 text-[10px] uppercase tracking-widest text-slate-600 border-t border-white/10 pt-4">🎮 Area Member</p>
+            <?php foreach ($menuUser as [$href, $icon, $label]): ?>
+                <a href="<?= e($href) ?>"
+                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition
+                   <?= $path === $href ? 'bg-cyan-500/15 text-white border border-cyan-500/30' : 'text-slate-500 hover:bg-white/5 hover:text-white' ?>">
+                    <span><?= $icon ?></span> <?= e($label) ?>
+                    <?php if ($href === '/pesan' && $dmUnread > 0): ?>
+                        <span class="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center"><?= $dmUnread > 99 ? '99+' : $dmUnread ?></span>
+                    <?php endif; ?>
+                </a>
+            <?php endforeach; ?>
+        <?php endif; ?>
         <div class="mt-auto border-t border-white/10 pt-4 px-1">
             <div class="flex items-center gap-3 px-2 pb-3">
                 <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900">
@@ -92,6 +140,10 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
             <span class="font-display font-bold text-white">CHIPER<span class="text-neon-cyan">X</span></span>
             <div class="flex items-center gap-4">
                 <?php $bellCount = \ChiperX\Models\Notification::unreadCount((int) $u['id']); ?>
+                <a href="/pesan" title="Pesan" class="relative text-slate-300 text-base leading-none">
+                    ✉️
+                    <span class="<?= $dmUnread > 0 ? '' : 'hidden' ?> absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center"><?= $dmUnread > 99 ? '99+' : $dmUnread ?></span>
+                </a>
                 <a href="/notifikasi" title="Notifikasi" class="relative text-slate-300 text-base leading-none">
                     🔔
                     <span class="bell-badge <?= $bellCount > 0 ? '' : 'hidden' ?> absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center"><?= $bellCount > 99 ? '99+' : $bellCount ?></span>
@@ -113,17 +165,20 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
     </div>
 </div>
 
-<!-- Bottom nav mobile: 4 pintasan utama + tombol ☰ membuka SEMUA menu -->
-<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/90 backdrop-blur-xl border-t border-white/10 flex">
+<!-- Bottom nav mobile: pintasan SESUAI PERAN (owner/admin/user BEDA) + ☰ semua menu -->
+<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/90 backdrop-blur-xl border-t border-white/10 flex" style="padding-bottom:env(safe-area-inset-bottom);">
     <?php
-    $firstFour = array_slice($menus, 0, 4);
-    $inFirstFour = in_array($path, array_column($firstFour, 0), true);
-    foreach ($firstFour as [$href, $icon, $label]): ?>
-        <a href="<?= e($href) ?>" class="flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] truncate <?= $path === $href ? 'text-neon-cyan' : 'text-slate-500' ?>">
-            <span class="text-base"><?= $icon ?></span><span class="truncate w-full text-center"><?= e($label) ?></span>
+    $inQuick = in_array($path, array_column($quickNav, 0), true);
+    foreach ($quickNav as [$href, $icon, $label]): ?>
+        <a href="<?= e($href) ?>" class="relative flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] truncate <?= $path === $href ? 'text-neon-cyan' : 'text-slate-500' ?>">
+            <span class="text-base relative"><?= $icon ?>
+                <?php if ($href === '/pesan' && $dmUnread > 0): ?>
+                    <span class="absolute -top-1 -right-2 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[8px] font-bold grid place-items-center"><?= $dmUnread > 99 ? '99+' : $dmUnread ?></span>
+                <?php endif; ?>
+            </span><span class="truncate w-full text-center"><?= e($label) ?></span>
         </a>
     <?php endforeach; ?>
-    <button type="button" id="menuMoreBtn" class="flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] <?= !$inFirstFour ? 'text-neon-cyan' : 'text-slate-500' ?>">
+    <button type="button" id="menuMoreBtn" class="flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] <?= !$inQuick ? 'text-neon-cyan' : 'text-slate-500' ?>">
         <span class="text-base">☰</span>Menu
     </button>
 </nav>
@@ -133,14 +188,35 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
     <div class="absolute inset-0 bg-black/70" data-close-sheet></div>
     <div class="absolute bottom-0 inset-x-0 rounded-t-3xl bg-slate-900 border-t border-violet-500/30 p-5 pb-8 max-h-[78vh] overflow-y-auto" style="animation:sheetUp .25s ease-out;">
         <div class="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4"></div>
-        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-3">Semua Menu — <?= e($role) ?></p>
+        <?php if (in_array($role, ['admin', 'owner'], true)): ?>
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-3">🛠️ Panel <?= e($role) ?></p>
+        <?php else: ?>
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-3">Semua Menu</p>
+        <?php endif; ?>
         <div class="grid grid-cols-3 gap-2">
             <?php foreach ($menus as [$href, $icon, $label]): ?>
-                <a href="<?= e($href) ?>" class="rounded-xl border px-2 py-3 text-center text-[11px] leading-tight <?= $path === $href ? 'bg-gradient-to-br from-violet-600/40 to-cyan-500/20 border-violet-400/40 text-white' : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08]' ?>">
+                <a href="<?= e($href) ?>" class="relative rounded-xl border px-2 py-3 text-center text-[11px] leading-tight <?= $path === $href ? 'bg-gradient-to-br from-violet-600/40 to-cyan-500/20 border-violet-400/40 text-white' : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08]' ?>">
+                    <?php if ($href === '/pesan' && $dmUnread > 0): ?>
+                        <span class="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center"><?= $dmUnread > 99 ? '99+' : $dmUnread ?></span>
+                    <?php endif; ?>
                     <span class="block text-lg mb-1"><?= $icon ?></span><?= e($label) ?>
                 </a>
             <?php endforeach; ?>
         </div>
+        <?php if (in_array($role, ['admin', 'owner'], true)): ?>
+            <!-- AREA MEMBER — dipisah supaya panel tdk tercampur dgn dashboard utama -->
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest mt-5 mb-3">🎮 Area Member</p>
+            <div class="grid grid-cols-3 gap-2">
+                <?php foreach ($menuUser as [$href, $icon, $label]): ?>
+                    <a href="<?= e($href) ?>" class="relative rounded-xl border px-2 py-3 text-center text-[11px] leading-tight <?= $path === $href ? 'bg-gradient-to-br from-cyan-500/25 to-emerald-500/10 border-cyan-400/40 text-white' : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08]' ?>">
+                        <?php if ($href === '/pesan' && $dmUnread > 0): ?>
+                            <span class="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center"><?= $dmUnread > 99 ? '99+' : $dmUnread ?></span>
+                        <?php endif; ?>
+                        <span class="block text-lg mb-1"><?= $icon ?></span><?= e($label) ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
         <form method="post" action="/logout" class="mt-4"><?= csrf_field() ?>
             <button class="w-full py-3 rounded-xl bg-red-500/10 border border-red-400/30 text-red-300 text-sm font-semibold">⏻ Keluar</button>
         </form>

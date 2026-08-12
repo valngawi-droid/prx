@@ -317,4 +317,11 @@ final class User
     {
         Database::run('UPDATE users SET name = ? WHERE id = ?', [mb_substr(trim($name), 0, 80) ?: 'Pengguna ChiperX', $id]);
     }
+
+    /** Perbarui bio singkat (maks 160 char, kosong → NULL). */
+    public static function updateBio(int $id, string $bio): void
+    {
+        $bio = trim($bio);
+        Database::run('UPDATE users SET bio = ? WHERE id = ?', [$bio !== '' ? mb_substr($bio, 0, 160) : null, $id]);
+    }
 }

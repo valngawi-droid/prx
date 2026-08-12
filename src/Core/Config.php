@@ -32,7 +32,21 @@ final class Config
     }
     public static function appUrl(): string
     {
-        return rtrim((string) self::secret('APP_URL', 'http://localhost:8000'), '/');
+        $url = rtrim((string) self::secret('APP_URL', ''), '/');
+
+        // Bila APP_URL belum di set / masih localhost, tetapi request datang lewat
+        // domain publik (mis. Cloudflare Tunnel app.chiperx.cyou) → pakai host
+        // request. Ini memastikan magic link email & link referral SELALU publik,
+        // tanpa perlu menyunting .env. Host divalidasi ketat (anti Host-header abuse).
+        $host    = (string) ($_SERVER['HTTP_HOST'] ?? '');
+        $isLocal = $url === '' || (bool) preg_match('~^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?$~i', $url);
+        if ($isLocal && $host !== ''
+            && !preg_match('~^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?$~i', $host)
+            && preg_match('~^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(:\d+)?$~iD', $host)) {
+            return 'https://' . strtolower($host);
+        }
+
+        return $url !== '' ? $url : 'http://localhost:8000';
     }
 
     public static function appName(): string
