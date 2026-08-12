@@ -2,9 +2,12 @@
 
 Target: `http://localhost:8009` di Termux → **`https://app.chiperx.cyou`** bisa diakses siapa pun.
 
-Kenapa Cloudflare Tunnel? HP seluler berada di belakang **CGNAT** — port forwarding/IP publik mustahil.
-Tunnel bekerja *outbound* (HP yang menelpon Cloudflare), jadi tembus di jaringan apa pun,
-plus HTTPS gratis dan DNS subdomain dibuat otomatis. Tanpa VPS, tanpa biaya.
+- **100% GRATIS** — jalur CLI murni di bawah TIDAK butuh kartu/PayPal dan TIDAK perlu
+  mendaftar Zero Trust. (Layar "tambah metode pembayaran" di dashboard Zero Trust itu
+  cuma onboarding upsell — jalur CLI melewatinya total.)
+- HP seluler berada di belakang **CGNAT** — port forwarding/IP publik mustahil.
+  Tunnel bekerja *outbound* (HP yang menelpon Cloudflare), jadi tembus di jaringan apa pun.
+- CNAME subdomain & HTTPS otomatis. Tanpa VPS, tanpa biaya.
 
 ---
 
@@ -14,38 +17,53 @@ plus HTTPS gratis dan DNS subdomain dibuat otomatis. Tanpa VPS, tanpa biaya.
 pkg install cloudflared -y
 ```
 
-## 2️⃣ Buat tunnel di dashboard Cloudflare (via Chrome HP)
-
-1. Buka <https://dash.cloudflare.com> → login → pojok kiri pilih **Zero Trust**
-2. **Networks → Tunnels → Create a tunnel** → pilih **Cloudflared**
-3. Nama bebas, mis. `chiperx-termux` → **Save**
-4. Salin **TOKEN** panjang (diawali `eyJ...`) — ada di perintah `--token eyJ...`
-   (cukup salin bagian tokennya saja)
-5. Lanjut ke tab **Public Hostname** → **Add a public hostname**:
-   - **Subdomain**: `app` *(atau `panel`/`www` — bebas)*
-   - **Domain**: `chiperx.cyou`
-   - **Service**: Type `HTTP` → URL `localhost:8009`
-   - **Save** → Cloudflare otomatis membuat CNAME `app.chiperx.cyou` ✅
-
-## 3️⃣ Jalankan semuanya dari Termux (satu perintah)
+## 2️⃣ Login (satu-satunya ketukan browser)
 
 ```bash
-export TUNNEL_TOKEN='eyJ...tempel-token-di-sini...'
-bash ~/prx/bin/start-public.sh
+cloudflared tunnel login
+```
+Muncul URL panjang → buka di Chrome → login Cloudflare → pilih **chiperx.cyou** → **Authorize**.
+Sertifikat tersimpan di `~/.cloudflared/cert.pem`. Selesai — sisanya full terminal.
+
+## 3️⃣ Buat tunnel + pasang subdomain (CMD)
+
+```bash
+cloudflared tunnel create chiperx
+cloudflared tunnel route dns chiperx app.chiperx.cyou
+```
+Langkah kedua otomatis membuat CNAME `app.chiperx.cyou` di DNS Cloudflare-mu ✅
+*(subdomain bebas: `app`, `panel`, `www`, dll.)*
+
+## 4️⃣ Config file
+
+`nano ~/.cloudflared/config.yml` — isi (ganti UUID sesuai output langkah 3):
+
+```yaml
+tunnel: UUID-TUNNELMU
+credentials-file: /data/data/com.termux/files/home/.cloudflared/UUID-TUNNELMU.json
+ingress:
+  - hostname: app.chiperx.cyou
+    service: http://localhost:8009
+  - service: http_status:404
 ```
 
-Skrip ini otomatis: menyalakan MariaDB bila mati, menyalakan server PHP (8 worker),
-lalu menjalankan tunnel di foreground. Biarkan jendela Termux ini tetap terbuka.
-Tips: jalankan `termux-wake-lock` dulu agar Android tidak membunuh prosesnya.
+## 5️⃣ Jalankan (satu perintah, setiap kali)
 
-> Agar `TUNNEL_TOKEN` tidak hilang setiap buka Termux: `echo "export TUNNEL_TOKEN='eyJ...'" >> ~/.bashrc`
+```bash
+bash ~/prx/bin/start-public.sh
+```
+Otomatis: wake-lock → MariaDB (dinyalakan bila mati) → PHP server 8 worker → tunnel connect.
+Biarkan jendela Termux terbuka; jangan swipe-close aplikasinya.
 
-## 4️⃣ WAJIB disetel setelah publik
+> Cuma mau demokan cepat tanpa akun? `bash bin/start-public.sh --quick`
+> (URL acak `*.trycloudflare.com`, BUKAN domain sendiri — untuk iseng saja.)
+
+## 6️⃣ WAJIB disetel setelah publik
 
 | Pengaturan | Nilai | Cara |
 |---|---|---|
 | `APP_URL` | `https://app.chiperx.cyou` | Web: Owner → 🧩 Integrasi → APP_URL → Simpan |
-| `APP_DEBUG` | `false` | Edit `.env` : `sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env` |
+| `APP_DEBUG` | `false` | `sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env` |
 
 - **APP_URL** dipakai untuk magic-link di email — kalau masih `localhost`, orang lain tak bisa klik.
 - **APP_DEBUG=false** penting! Mode debug menampilkan info internal (path server, dsb.) — jangan tampilkan ke publik.
@@ -61,7 +79,9 @@ Tips: jalankan `termux-wake-lock` dulu agar Android tidak membunuh prosesnya.
 | Gejala | Obat |
 |---|---|
 | `cloudflared: command not found` | `pkg install cloudflared -y` |
+| `cloudflared update` otomatis error di Termux | Sudah ditangani — skrip memakai `--no-autoupdate` |
 | Tunnel terputus saat HP tidur | `termux-wake-lock` + jangan bersihkan Termux dari recent apps |
-| ERR 1033 / tunnel tidak jalan | Cek token benar & tunnel status hijau di dashboard Zero Trust |
-| Login loop / 419 di domain publik | Pastikan akses via `https://` (cookie secure) & APP_URL sudah https |
-| Lambat banyak pengunjung | Sudah tertangani: skrip memakai `PHP_CLI_SERVER_WORKERS=8` |
+| `route dns` gagal | Berarti `cert.pem` belum ada → ulangi langkah 2 (`tunnel login`) |
+| Subdomain lain | Ulangi langkah 3–4 dengan hostname berbeda (boleh banyak ingress) |
+| Login loop / 419 di domain publik | Pastikan akses via `https://` & APP_URL sudah https |
+
