@@ -53,6 +53,33 @@ if [ -n "${TUNNEL_TOKEN:-}" ]; then
     exec cloudflared tunnel run --token "${TUNNEL_TOKEN}"
 fi
 
+# ── Mode tunnel bernama: AUTO-PERBAIKI config.yml ──
+# Bila file kredensial *.json sudah ada (dari 'tunnel create') tapi config.yml
+# belum ada/masih berisi placeholder UUID-TUNNELMU → tulis ulang otomatis.
+CRED_JSON="$(find "$CF_DIR" -maxdepth 1 -name '*.json' 2>/dev/null | head -n1)"
+if [ -n "$CRED_JSON" ]; then
+    T_UUID="$(basename "$CRED_JSON" .json)"
+    PUB_HOST="${TUNNEL_HOSTNAME:-app.chiperx.cyou}"
+    if [ ! -f "$CF_DIR/config.yml" ] || grep -q 'UUID-TUNNELMU' "$CF_DIR/config.yml" 2>/dev/null; then
+        cat > "$CF_DIR/config.yml" <<YAML
+tunnel: $T_UUID
+credentials-file: $CRED_JSON
+ingress:
+  - hostname: $PUB_HOST
+    service: http://localhost:8009
+  - service: http_status:404
+YAML
+        echo "🛠️  config.yml dibuat otomatis → UUID ${T_UUID} | hostname ${PUB_HOST}"
+        echo "    (ganti subdomain: TUNNEL_HOSTNAME=panel.chiperx.cyou bash bin/start-public.sh)"
+    fi
+    # Pastikan DNS route terpasang (aman diulang; butuh cert.pem dari 'tunnel login')
+    if [ -f "$CF_DIR/cert.pem" ]; then
+        cloudflared tunnel route dns --overwrite-dns "$T_UUID" "$PUB_HOST" 2>&1 | tail -n1 || true
+    fi
+    echo "🚇 Cloudflare Tunnel → https://${PUB_HOST} : menghubungkan..."
+    exec cloudflared tunnel run
+fi
+
 if [ -f "$CF_DIR/config.yml" ]; then
     TUNNEL_NAME="${1:-chiperx}"
     echo "🚇 Cloudflare Tunnel '${TUNNEL_NAME}' (subdomain sendiri): menghubungkan..."
@@ -62,29 +89,18 @@ fi
 # ── Belum setup: panduan CLI murni (GRATIS, tanpa Zero Trust dashboard) ──
 cat <<'EOF'
 
-⚠️  Tunnel belum disetup. Setup SEKALI saja — full CMD, GRATIS,
-   tanpa kartu/PayPal, tanpa masuk dashboard Zero Trust:
+⚠️  Tunnel belum disetup. Setup SEKALI saja — full CMD, GRATIS:
 
    1) cloudflared tunnel login
-      → muncul URL; buka di Chrome, login Cloudflare,
-        pilih chiperx.cyou, tekan "Authorize". (satu-satunya ketukan browser)
+      → buka URL-nya di Chrome, login Cloudflare, pilih chiperx.cyou, "Authorize".
 
    2) cloudflared tunnel create chiperx
-      → catat UUID + path credentials json yang ditampilkan
 
-   3) cloudflared tunnel route dns chiperx app.chiperx.cyou
-      → CNAME subdomain otomatis terpasang di DNS-mu ✅
+   3) bash bin/start-public.sh   ← jalankan lagi: config.yml + DNS route
+      ditulis OTOMATIS (tidak perlu edit nano sama sekali!).
 
-   4) nano ~/.cloudflared/config.yml   — isi:
-
-        tunnel: UUID-DARI-LANGKAH-2
-        credentials-file: /data/data/com.termux/files/home/.cloudflared/UUID-DARI-LANGKAH-2.json
-        ingress:
-          - hostname: app.chiperx.cyou
-            service: http://localhost:8009
-          - service: http_status:404
-
-   5) bash bin/start-public.sh
+   Subdomain bawaan: app.chiperx.cyou — ganti dengan:
+   TUNNEL_HOSTNAME=panel.chiperx.cyou bash bin/start-public.sh
 
    Jangan lupa setelah live:
    - Web Owner → 🧩 Integrasi → APP_URL = https://app.chiperx.cyou → Simpan
