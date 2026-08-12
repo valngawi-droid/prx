@@ -18,7 +18,7 @@ use ChiperX\Core\Session;
  * karena file .js lama yang ke-cache!).
  */
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '2.7.0');
+    define('APP_VERSION', '2.8.0');
 }
 
 /** Escape output HTML — satu-satunya cara aman menampilkan data user (anti-XSS). */
@@ -205,4 +205,96 @@ function theme_colors(): array
         // DB tak terjangkau → pakai default
     }
     return $def;
+}
+
+/**
+ * 📝 Render teks chat ala WhatsApp/Telegram (AMAN dari XSS):
+ *  - *tebal*  _miring_  ~coret~
+ *  - URL otomatis jadi link biru (buka tab baru)
+ *  - @username otomatis jadi tautan profil
+ * Pakai: echo render_chat($body) — body MENTAH dari DB (belum di-escape).
+ */
+function render_chat(string $text): string
+{
+    $safe = e($text);
+    // 1) URL → link (jalan di teks yang sudah di-escape: http/https aman)
+    $safe = preg_replace(
+        '~(https?://[^\s<]+)~i',
+        '<a href="$1" target="_blank" rel="noopener nofollow" class="text-cyan-300 underline decoration-cyan-500/50 hover:text-cyan-200 break-all">$1</a>',
+        (string) $safe
+    );
+    // 2) @mention → tautan profil (huruf/angka/titik/underscore)
+    $safe = preg_replace(
+        '/(?<![\w&;])@([a-z0-9_.]{3,20})\b/i',
+        '<a href="/profil/@$1" class="text-violet-300 font-semibold hover:underline">@$1</a>',
+        (string) $safe
+    );
+    // 3) Gaya WhatsApp — urutan: bold → strike → italic (italic terakhir agar tak memakan *)
+    $safe = preg_replace('/\*([^*\n]+)\*/', '<b class="font-bold">$1</b>', (string) $safe);
+    $safe = preg_replace('/~([^~\n]+)~/', '<span class="line-through opacity-80">$1</span>', (string) $safe);
+    $safe = preg_replace('/(?<![\w*])_([^_\n]+)_(?![\w*])/', '<i>$1</i>', (string) $safe);
+    return (string) $safe;
+}
+
+/**
+ * 🏷️ Kirim notifikasi mention @username — dipakai channel & komentar (Discord/IG style).
+ * @param string $text   teks yang dipindai
+ * @param string $url    tujuan saat notif diklik
+ * @param string $dari   nama penulis (untuk judul notif)
+ * @param int[]  $skipId user id yang dilewati (penulis sendiri)
+ */
+function send_mentions(string $text, string $url, string $dari, array $skipId = []): void
+{
+    if (!preg_match_all('/(?<![\w&;])@([a-z0-9_.]{3,20})\b/i', $text, $m)) {
+        return;
+    }
+    foreach (array_unique(array_map('strtolower', $m[1])) as $uname) {
+        try {
+            $u = \ChiperX\Models\User::findByUsername($uname);
+            if (!$u || in_array((int) $u['id'], $skipId, true)) {
+                continue;
+            }
+            \ChiperX\Models\Notification::add(
+                (int) $u['id'],
+                '🏷️ ' . $dari . ' menyebut kamu',
+                mb_substr(trim(preg_replace('/\s+/', ' ', $text) ?? $text), 0, 90),
+                $url,
+                'mention'
+            );
+        } catch (\Throwable) {
+            // username valid tapi user tak ada / DB error → lanjut saja
+        }
+    }
+}
+
+/** 🤬 AutoMod gaya Discord: sensor kata terlarang dari Setting owner (koma-separated). */
+function sensor_kata(string $text): string
+{
+    static $words = null;
+    if ($words === null) {
+        $words = [];
+        try {
+            $raw = (string) \ChiperX\Models\Setting::get('banned_words', '');
+            foreach (explode(',', mb_strtolower($raw)) as $w) {
+                $w = trim($w);
+                if ($w !== '' && mb_strlen($w) >= 2) {
+                    $words[] = $w;
+                }
+            }
+        } catch (\Throwable) {
+            $words = [];
+        }
+    }
+    if ($words === []) {
+        return $text;
+    }
+    foreach ($words as $w) {
+        $len = mb_strlen($w);
+        $text = (string) preg_replace(
+            '/(?<![\p{L}\p{N}])' . preg_quote($w, '/') . '(?![\p{L}\p{N}])/iu',
+            str_repeat('🌟', min(3, $len)),
+            $text
+        );
+    }
+    return $text;
 }

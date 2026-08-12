@@ -24,7 +24,7 @@ use ChiperX\Core\Config;
 final class UploadService
 {
     /** Bucket yang sah → subfolder storage/uploads/. */
-    public const BUCKETS = ['tmp', 'avatar', 'sampul', 'situs', 'produk', 'social'];
+    public const BUCKETS = ['tmp', 'avatar', 'sampul', 'situs', 'produk', 'social', 'dm'];
 
     private const IMG_EXT   = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     private const VIDEO_EXT = ['mp4', 'webm'];

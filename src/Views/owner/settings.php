@@ -37,8 +37,8 @@
         </div>
     </div>
 
-    <!-- 🚧 MAINTENANCE + ⚡ EVENT -->
-    <div class="grid md:grid-cols-2 gap-4">
+    <!-- 🚧 MAINTENANCE + ⚡ EVENT + 🤬 AUTOMOD -->
+    <div class="grid md:grid-cols-3 gap-4">
         <div class="glass-card p-6 border-amber-500/25">
             <h2 class="font-display font-bold text-amber-300 mb-1">🚧 Mode Pemeliharaan</h2>
             <p class="text-[11px] text-slate-500 mb-4">Aktif → pengunjung melihat halaman "sedang maintenance" cantik; owner & admin tetap bisa masuk.</p>
@@ -56,6 +56,12 @@
                 <input name="coin_multiplier" type="number" step="0.5" min="0.5" max="10" value="<?= e($settings['coin_multiplier'] ?? '1') ?>" class="form-input w-28 text-center text-lg font-bold text-amber-300">
                 <span class="text-xs text-slate-500">× lipat<br>(0.5 – 10)</span>
             </div>
+        </div>
+        <div class="glass-card p-6 border-red-500/25">
+            <h2 class="font-display font-bold text-red-300 mb-1">🤬 AutoMod Kanal</h2>
+            <p class="text-[11px] text-slate-500 mb-4">Kata-kata ini otomatis disensor 🌟 di semua kanal (gaya Discord AutoMod). Pisahkan dengan koma.</p>
+            <textarea name="banned_words" rows="3" maxlength="300" placeholder="kata1, kata2, kata3" class="form-input w-full text-xs"><?= e($settings['banned_words'] ?? '') ?></textarea>
+            <p class="text-[10px] text-slate-600 mt-1.5">⚠️ Disimpan apa adanya — sensor berlaku utuh per kata (bukan potongan kata).</p>
         </div>
     </div>
 

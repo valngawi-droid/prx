@@ -51,6 +51,11 @@
             <option value="info">ℹ️ Info</option><option value="success">✅ Sukses</option><option value="warning">⚠️ Peringatan</option>
         </select>
         <textarea name="body" required rows="4" maxlength="3000" placeholder="Isi pengumuman..." class="form-input w-full text-sm"></textarea>
+        <div>
+            <label class="text-[10px] uppercase tracking-wider text-slate-500 block mb-1">⏰ Jadwalkan tampil (opsional — gaya Telegram)</label>
+            <input type="datetime-local" name="scheduled_at" class="form-input w-full text-sm">
+            <p class="text-[10px] text-slate-600 mt-1">Kosongkan = langsung tampil. Terjadwal = baru muncul di beranda & feed setelah jam itu.</p>
+        </div>
         <div class="flex gap-3">
             <button type="button" onclick="this.closest('dialog').close()" class="flex-1 py-2.5 rounded-xl bg-white/10 text-sm">Batal</button>
             <button class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-sm font-semibold text-white">Terbitkan</button>

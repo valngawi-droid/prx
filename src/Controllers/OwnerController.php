@@ -277,7 +277,9 @@ final class OwnerController extends Controller
                 $steps[] = $label . ': dilewati';
             }
         };
-        $try('Stories kedaluwarsa', static fn () => $db::run('DELETE FROM stories WHERE expires_at < NOW()')->rowCount());
+        $try('Stories >2 hari', static fn () => $db::run('DELETE FROM stories WHERE created_at < NOW() - INTERVAL 2 DAY')->rowCount());
+        $try('Typing indicator basi', static fn () => $db::run('DELETE FROM dm_typing WHERE ts < NOW() - INTERVAL 1 HOUR')->rowCount());
+        $try('DM musnah (self-destruct)', static fn () => $db::run('DELETE FROM messages WHERE expire_at IS NOT NULL AND expire_at < NOW() - INTERVAL 1 HOUR')->rowCount());
         $try('Notifikasi >30 hari', static fn () => $db::run('DELETE FROM notifications WHERE created_at < NOW() - INTERVAL 30 DAY')->rowCount());
         $try('Jurnal ancaman >30 hari', static fn () => $db::run('DELETE FROM threat_log WHERE created_at < NOW() - INTERVAL 30 DAY')->rowCount());
         $try('Shoutbox >7 hari', static fn () => $db::run('DELETE FROM shouts WHERE created_at < NOW() - INTERVAL 7 DAY')->rowCount());
@@ -985,6 +987,11 @@ final class OwnerController extends Controller
         }
         $mult = (float) str_replace(',', '.', $req->str('coin_multiplier', '1', 6));
         Setting::set('coin_multiplier', (string) max(0.5, min(10.0, $mult)));
+
+        // 🤬 AutoMod (Discord): daftar kata terlarang — disensor 🌟 di kanal
+        if ($req->input('banned_words') !== null) {
+            Setting::set('banned_words', mb_substr(trim($req->str('banned_words', '', 300)), 0, 300));
+        }
 
         // Kredensial gerbang rahasia /zszdgj/login — password di-hash bcrypt,
         // nilai mentah TIDAK PERNAH disimpan di mana pun.

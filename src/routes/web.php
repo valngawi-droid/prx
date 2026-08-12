@@ -8,6 +8,7 @@ use ChiperX\Controllers\DashboardController;
 use ChiperX\Controllers\DownloadController;
 use ChiperX\Controllers\GameController;
 use ChiperX\Controllers\GateController;
+use ChiperX\Controllers\ChannelController;
 use ChiperX\Controllers\HomeController;
 use ChiperX\Controllers\MediaController;
 use ChiperX\Controllers\NotificationController;
@@ -15,6 +16,7 @@ use ChiperX\Controllers\MessageController;
 use ChiperX\Controllers\OwnerController;
 use ChiperX\Controllers\ProfileController;
 use ChiperX\Controllers\SocialController;
+use ChiperX\Controllers\SearchController;
 use ChiperX\Controllers\RedeemController;
 use ChiperX\Controllers\StoreController;
 use ChiperX\Controllers\ToolsController;
@@ -83,10 +85,10 @@ return static function (Router $r): void {
     $r->get('/profil/{username}', [ProfileController::class, 'publicShow']);
     $r->get('/u/{username}', [ProfileController::class, 'legacyRedirect']); // format lama → dialihkan
 
-    // ---------------- KOMUNITAS v2.2 (feed ala Instagram/Facebook) ----------------
+    // ---------------- KOMUNITAS (feed ala Instagram/Facebook) ----------------
     $r->get('/komunitas', [SocialController::class, 'feed']);
     $r->get('/media/social/{file}', [SocialController::class, 'media']);
-    // 🖼️ Media unggahan generik v2.7 (tmp/avatar/sampul/situs/produk)
+    // 🖼️ Media unggahan generik v2.7 (tmp/avatar/sampul/situs/produk/dm)
     $r->get('/media/{bucket}/{file}', [MediaController::class, 'serve']);
     $r->post('/komunitas/post', [SocialController::class, 'store'], AuthMiddleware::class);
     $r->post('/komunitas/{id}/like', [SocialController::class, 'like'], AuthMiddleware::class);
@@ -95,6 +97,26 @@ return static function (Router $r): void {
     $r->get('/tersimpan', [SocialController::class, 'bookmarks'], AuthMiddleware::class);
     $r->post('/komunitas/{id}/delete', [SocialController::class, 'deletePost'], AuthMiddleware::class);
     $r->post('/komunitas/komentar/{id}/delete', [SocialController::class, 'deleteComment'], AuthMiddleware::class);
+    // 🧭 v2.8 IG: jelajah, daftar penyuka, arsip, reaksi pengumuman
+    $r->get('/jelajahi', [SocialController::class, 'explore']);
+    $r->get('/komunitas/{id}/suka', [SocialController::class, 'likers']);
+    $r->post('/komunitas/{id}/arsip', [SocialController::class, 'toggleArchive'], AuthMiddleware::class);
+    $r->post('/pengumuman/{id}/reaksi', [SocialController::class, 'announceReact'], AuthMiddleware::class);
+
+    // ---------------- 📢 KANAL v2.8 (Discord: text/announce, slowmode, pin, reaksi, poll) ----------------
+    $r->get('/kanal', [ChannelController::class, 'index']);
+    $r->get('/kanal/{slug}', [ChannelController::class, 'show']);
+    $r->post('/kanal/buat', [ChannelController::class, 'create'], AdminMiddleware::class);
+    $r->post('/kanal/{slug}/post', [ChannelController::class, 'post'], AuthMiddleware::class);
+    $r->post('/kanal/{slug}/reaksi/{id}', [ChannelController::class, 'react'], AuthMiddleware::class);
+    $r->post('/kanal/{slug}/vote/{id}', [ChannelController::class, 'vote'], AuthMiddleware::class);
+    $r->post('/kanal/{slug}/pin/{id}', [ChannelController::class, 'pin'], AuthMiddleware::class);
+    $r->post('/kanal/{slug}/edit/{id}', [ChannelController::class, 'edit'], AuthMiddleware::class);
+    $r->post('/kanal/{slug}/hapus/{id}', [ChannelController::class, 'deleteMessage'], AuthMiddleware::class);
+    $r->post('/kanal/{slug}/atur', [ChannelController::class, 'configure'], AdminMiddleware::class);
+
+    // 🔎 Pencarian global (Telegram instant search)
+    $r->get('/cari', [SearchController::class, 'index']);
 
     // ---------------- STORIES 24 JAM v2.3 (ala WA Status / IG Story) ----------------
     $r->post('/komunitas/story', [SocialController::class, 'storyStore'], AuthMiddleware::class);
@@ -103,9 +125,17 @@ return static function (Router $r): void {
 
     // ---------------- PESAN PRIBADI v2.2 (DM ala WhatsApp/Telegram) ----------------
     $r->get('/pesan', [MessageController::class, 'index'], AuthMiddleware::class);
+    $r->post('/pesan/baca-semua', [MessageController::class, 'markAll'], AuthMiddleware::class);
     $r->get('/pesan/{username}', [MessageController::class, 'thread'], AuthMiddleware::class);
     $r->post('/pesan/{username}', [MessageController::class, 'send'], AuthMiddleware::class);
     $r->get('/pesan/{username}/json', [MessageController::class, 'poll'], AuthMiddleware::class);
+    // ✉️ v2.8 DM pro: typing, hapus-untuk-semua, pin, blokir, forward, ekspor
+    $r->post('/pesan/{username}/typing', [MessageController::class, 'typing'], AuthMiddleware::class);
+    $r->post('/pesan/msg/{id}/delete', [MessageController::class, 'deleteMsg'], AuthMiddleware::class);
+    $r->post('/pesan/{username}/pin/{id}', [MessageController::class, 'pinMsg'], AuthMiddleware::class);
+    $r->post('/pesan/{username}/blokir', [MessageController::class, 'toggleBlock'], AuthMiddleware::class);
+    $r->post('/pesan/{username}/teruskan', [MessageController::class, 'forward'], AuthMiddleware::class);
+    $r->get('/pesan/{username}/ekspor', [MessageController::class, 'export'], AuthMiddleware::class);
 
     // ---------------- NOTIFIKASI (lonceng 🔔) ----------------
     $r->get('/notifikasi', [NotificationController::class, 'index'], AuthMiddleware::class);

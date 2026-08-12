@@ -32,8 +32,8 @@ if ($bnavUser === null) {
     $bnavItems = [
         ['/', '🏠', 'Beranda'],
         ['/komunitas', '💬', 'Komunitas'],
+        ['/kanal', '📢', 'Kanal'],
         ['/games', '🎮', 'Games'],
-        ['/store', '🛒', 'Store'],
     ];
     $bnavTail = ['/login', '✨', 'Masuk'];
 } else {
@@ -41,20 +41,20 @@ if ($bnavUser === null) {
     $bnavItems = match ((string) ($bnavUser['role'] ?? 'user')) {
         'owner' => [
             ['/owner', '👑', 'Owner'],
-            ['/admin', '📊', 'Admin'],
+            ['/kanal', '📢', 'Kanal'],
             ['/komunitas', '💬', 'Komunitas'],
             ['/pesan', '✉️', 'Pesan'],
         ],
         'admin' => [
             ['/admin', '📊', 'Ringkasan'],
-            ['/admin/products', '📦', 'Produk'],
+            ['/kanal', '📢', 'Kanal'],
             ['/komunitas', '💬', 'Komunitas'],
             ['/pesan', '✉️', 'Pesan'],
         ],
         default => [
             ['/dashboard', '◈', 'Dasbor'],
             ['/komunitas', '💬', 'Komunitas'],
-            ['/tools', '🚀', 'Tools'],
+            ['/kanal', '📢', 'Kanal'],
             ['/pesan', '✉️', 'Pesan'],
         ],
     };

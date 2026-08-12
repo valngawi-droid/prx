@@ -513,8 +513,17 @@ final class AdminController extends Controller
             flash('error', 'Judul dan isi pengumuman wajib diisi.');
             return redirect('/admin/announcements');
         }
-        Announcement::create($title, $body, $req->str('level', 'info', 10), auth_user()['id']);
-        flash('success', 'Pengumuman diterbitkan.');
+        // ⏰ Pengumuman terjadwal (format input datetime-local → Y-m-d H:i:s)
+        $when = null;
+        $raw  = trim($req->str('scheduled_at', '', 20));
+        if ($raw !== '') {
+            $ts = strtotime(str_replace('T', ' ', $raw));
+            if ($ts !== false && $ts > time()) {
+                $when = date('Y-m-d H:i:s', $ts);
+            }
+        }
+        Announcement::createScheduled($title, $body, $req->str('level', 'info', 10), (int) auth_user()['id'], $when);
+        flash('success', $when ? 'Pengumuman dijadwalkan tayang ' . date('d M Y H:i', strtotime($when)) . ' ⏰' : 'Pengumuman diterbitkan.');
         return redirect('/admin/announcements');
     }
 

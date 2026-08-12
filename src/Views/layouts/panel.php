@@ -6,7 +6,10 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $menuUser = [
     ['/dashboard', '◈', 'Dashboard'],
     ['/komunitas', '💬', 'Komunitas'],
+    ['/kanal', '📢', 'Kanal'],
+    ['/jelajahi', '🧭', 'Jelajahi'],
     ['/pesan', '✉️', 'Pesan'],
+    ['/cari', '🔎', 'Pencarian'],
     ['/tools', '🚀', 'Tools AI'],
     ['/games', '🎮', 'Mini Games'],
     ['/redeem', '🎁', 'Redeem Center'],

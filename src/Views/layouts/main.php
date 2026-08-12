@@ -78,6 +78,9 @@
             <a href="/store" class="hover:text-neon-cyan transition">Store</a>
             <a href="/games" class="hover:text-neon-purple transition">🎮 Mini Games</a>
             <a href="/komunitas" class="hover:text-neon-cyan transition">💬 Komunitas</a>
+            <a href="/kanal" class="hover:text-neon-cyan transition">📢 Kanal</a>
+            <a href="/jelajahi" class="hover:text-neon-cyan transition">🧭 Jelajahi</a>
+            <a href="/cari" class="hover:text-neon-cyan transition">🔎</a>
             <a href="/members" class="hover:text-neon-cyan transition">👥 Members</a>
         </div>
         <div class="flex items-center gap-3">

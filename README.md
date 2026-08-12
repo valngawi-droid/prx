@@ -1,8 +1,10 @@
 # 🚀 ChiperX — Platform Komunitas Digital Enterprise
 
-> **NEBULA v2.7** — Upload dari HP di semua Tools, Avatar & Sampul profil upload, Bookmark,
-> Pencapaian, Pengaturan Akun, 10 fitur baru untuk setiap role (user/admin/owner),
-> Mode Pemeliharaan, Event Pengali Koin, dan Gambar Website kustom (logo/OG) dari Owner.
+> **NEBULA v2.8 "SOCIAL NEBULA"** — Lapisan sosial lengkap ala 4 aplikasi besar:
+> **Discord** (Kanal teks/pengumuman, slowmode, pin pesan, reaksi emoji, reply, AutoMod kata terlarang, siapa-online, edit pesan, ping @mention),
+> **WhatsApp** (centang ✓✓ biru, typing indicator, foto di chat, hapus-untuk-semua, pin pesan, blokir user, last seen, format *tebal* _miring_ ~coret~),
+> **Instagram** (double-tap ❤️, lightbox, postingan video, halaman Jelajahi, insight penonton Story, balas komentar, arsip postingan, daftar penyuka),
+> **Telegram** (polling di kanal, pengumuman terjadwal, pencarian global, Pesan Tersimpan, pesan self-destruct, forward, ekspor chat .txt, tandai semua dibaca, reaksi pengumuman).
 
 Website **ChiperX** full-stack: autentikasi **Email OTP** (tanpa password), **Mini Games** dengan
 ChiperX Coin, **Redeem Center**, **Store + Auto-Payment**, dan **Owner God Mode**

@@ -45,12 +45,25 @@ final class SocialController extends Controller
             $storiesBar = \ChiperX\Models\Story::activeBar(12);
         } catch (\Throwable) {
         }
+        // 📢 Banner pengumuman terbaru + reaksinya (Telegram channel vibes)
+        $banner = null;
+        $bannerReacts = [];
+        try {
+            $acts = \ChiperX\Models\Announcement::active(1);
+            if ($acts !== []) {
+                $banner = $acts[0];
+                $bannerReacts = \ChiperX\Models\Announcement::reactions((int) $banner['id'], (int) ($me['id'] ?? 0));
+            }
+        } catch (\Throwable) {
+        }
         return $this->view('social/feed', [
             'title'    => 'Komunitas',
             'posts'    => $posts,
             'comments' => $comments,
             'me'       => $me,
             'stories'  => $storiesBar,
+            'banner'   => $banner,
+            'bannerReacts' => $bannerReacts,
         ]);
     }
 
@@ -101,11 +114,25 @@ final class SocialController extends Controller
             flash('warning', 'Story-nya sudah kedaluwarsa (berlaku 24 jam). ⏰');
             return redirect('/komunitas');
         }
+        // 👀 Catat view (IG story insight) — kecuali pemilik story sendiri
+        $me = auth_user();
+        $viewers = [];
+        if ($me) {
+            foreach ($stories as $s) {
+                if ((int) $target['id'] !== (int) $me['id']) {
+                    \ChiperX\Models\Story::recordView((int) $s['id'], (int) $me['id']);
+                }
+            }
+        }
+        if ($me && (int) $target['id'] === (int) $me['id']) {
+            $viewers = \ChiperX\Models\Story::viewers((int) $stories[0]['id']);
+        }
         return $this->view('social/story', [
             'title'   => 'Story — ' . $target['name'],
             'target'  => $target,
             'stories' => $stories,
-            'me'      => auth_user(),
+            'me'      => $me,
+            'viewers' => $viewers,
         ]);
     }
 
@@ -142,20 +169,76 @@ final class SocialController extends Controller
         $body = trim($req->str('body', '', 500));
         $image = null;
         try {
-            $image = $this->handleImageUpload();
+            $image = $this->handleMediaUpload(); // 🎬 foto ATAU video (IG)
         } catch (\RuntimeException $e) {
             flash('error', $e->getMessage());
             return redirect('/komunitas');
         }
 
         if ($body === '' && $image === null) {
-            flash('error', 'Postingan tidak boleh kosong — tulis sesuatu atau unggah foto.');
+            flash('error', 'Postingan tidak boleh kosong — tulis sesuatu atau unggah foto/video.');
             return redirect('/komunitas');
         }
 
         Post::create($uid, $body !== '' ? $body : '📷', $image);
+        // 🏷️ Mention di postingan → notif
+        send_mentions($body, '/komunitas', (string) $user['name'], [$uid]);
         flash('success', 'Postingan terkirim ke komunitas! 🎉');
         return redirect('/komunitas');
+    }
+
+    /** 🧭 GET /jelajahi — grid semua postingan bergambar (Explore gaya Instagram). */
+    public function explore(Request $req): string
+    {
+        $posts = [];
+        try {
+            $posts = Post::explore(60);
+        } catch (\Throwable) {
+        }
+        return $this->view('social/explore', [
+            'title' => 'Jelajahi',
+            'posts' => $posts,
+            'me'    => auth_user(),
+        ]);
+    }
+
+    /** ❤️ GET /komunitas/{id}/suka — daftar penyuka postingan. */
+    public function likers(Request $req, array $params): Response|string
+    {
+        $id   = (int) ($params['id'] ?? 0);
+        $post = \ChiperX\Core\Database::one(
+            'SELECT p.id, p.body, u.name FROM posts p JOIN users u ON u.id = p.user_id WHERE p.id = ?',
+            [$id]
+        );
+        if (!$post) {
+            flash('error', 'Postingan tidak ditemukan.');
+            return redirect('/komunitas');
+        }
+        return $this->view('social/likers', [
+            'title'  => 'Disukai oleh',
+            'post'   => $post,
+            'likers' => Post::likers($id),
+        ]);
+    }
+
+    /** 📥 POST /komunitas/{id}/arsip — arsipkan/pulihkan postingan sendiri. */
+    public function toggleArchive(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $user = auth_user();
+        $archived = Post::toggleArchive((int) ($params['id'] ?? 0), (int) $user['id']);
+        flash('success', $archived ? 'Postingan diarsipkan — hanya kamu yang bisa melihatnya di feed. 📥' : 'Postingan dipulihkan ke publik! 📤');
+        $ref = parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?: '';
+        return redirect(str_starts_with($ref, '/profil') ? $ref : '/komunitas');
+    }
+
+    /** 😀 POST /pengumuman/{id}/reaksi — toggle reaksi banner pengumuman. */
+    public function announceReact(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $me = auth_user();
+        \ChiperX\Models\Announcement::toggleReaction((int) ($params['id'] ?? 0), (int) $me['id'], $req->str('emoji', '', 8));
+        return redirect('/komunitas#pengumuman');
     }
 
     public function like(Request $req, array $params): Response
@@ -192,10 +275,22 @@ final class SocialController extends Controller
             flash('error', 'Komentar tidak boleh kosong.');
             return redirect('/komunitas#p' . $id);
         }
-        Post::addComment($id, (int) $user['id'], $body);
+        // ↩️ Balasan komentar (IG)
+        $parentId = (int) $req->str('parent_id', '0', 10);
+        $parent   = null;
+        if ($parentId > 0) {
+            $parent = Post::findComment($parentId);
+        }
+        Post::addComment($id, (int) $user['id'], $body, $parent ? $parentId : null);
         if ((int) $post['user_id'] !== (int) $user['id']) {
             Notification::add((int) $post['user_id'], '💬 ' . $user['name'] . ' mengomentari postinganmu', mb_substr($body, 0, 80), '/komunitas#p' . $id);
         }
+        // Notif ke pemilik komentar yang dibalas
+        if ($parent && (int) $parent['user_id'] !== (int) $user['id'] && (int) $parent['user_id'] !== (int) $post['user_id']) {
+            Notification::add((int) $parent['user_id'], '↩️ ' . $user['name'] . ' membalas komentarmu', mb_substr($body, 0, 80), '/komunitas#p' . $id);
+        }
+        // 🏷️ Mention @user di komentar → notif (IG)
+        send_mentions($body, '/komunitas#p' . $id, (string) $user['name'], [(int) $user['id'], (int) $post['user_id']]);
         return redirect('/komunitas#p' . $id);
     }
 
@@ -259,23 +354,67 @@ final class SocialController extends Controller
         return redirect('/komunitas#p' . (int) $c['post_id']);
     }
 
-    /** Sajikan foto postingan dari storage/uploads/social (whitelist ketat). */
+    /** Sajikan foto/VIDEO postingan dari storage/uploads/social (whitelist ketat). */
     public function media(Request $req, array $params): Response
     {
         $name = basename((string) ($params['file'] ?? ''));
-        if (!preg_match('/^[a-f0-9]{24}\.(jpg|jpeg|png|webp|gif)$/', $name)) {
+        if (!preg_match('/^[a-f0-9]{24}\.(jpg|jpeg|png|webp|gif|mp4|webm)$/', $name)) {
             return Response::html('Not found', 404);
         }
         $path = BASE_PATH . '/storage/uploads/social/' . $name;
         if (!is_file($path)) {
             return Response::html('Not found', 404);
         }
-        $mime = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif'][pathinfo($name, PATHINFO_EXTENSION)];
+        $mime = [
+            'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+            'webp' => 'image/webp', 'gif' => 'image/gif',
+            'mp4' => 'video/mp4', 'webm' => 'video/webm',
+        ][pathinfo($name, PATHINFO_EXTENSION)];
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . filesize($path));
         header('Cache-Control: public, max-age=604800'); // cache 7 hari
         readfile($path);
         exit;
+    }
+
+    /** Upload media postingan: foto ≤4MB ATAU video mp4/webm ≤25MB → storage/uploads/social. */
+    private function handleMediaUpload(): ?string
+    {
+        if (empty($_FILES['image']) || ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        $f    = $_FILES['image'];
+        $ext  = strtolower(pathinfo((string) $f['name'], PATHINFO_EXTENSION));
+        $isVid = in_array($ext, ['mp4', 'webm'], true);
+        $maxMb = $isVid ? 25 : 4;
+        if ($f['error'] !== UPLOAD_ERR_OK || $f['size'] > $maxMb * 1024 * 1024) {
+            throw new \RuntimeException(($isVid ? 'Video' : 'Foto') . " gagal diunggah / melebihi {$maxMb}MB.");
+        }
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm'], true)) {
+            throw new \RuntimeException('Format harus JPG/PNG/WEBP/GIF (foto) atau MP4/WEBM (video).');
+        }
+        // Validasi konten: foto dicek sosok gambarnya; video dicek signature ftyp/EBML
+        if ($isVid) {
+            $fh = @fopen((string) $f['tmp_name'], 'rb');
+            $head = $fh ? (string) fread($fh, 16) : '';
+            if ($fh) {
+                fclose($fh);
+            }
+            if (!str_contains($head, 'ftyp') && !str_starts_with($head, "\x1A\x45\xDF\xA3")) {
+                throw new \RuntimeException('File bukan video valid.');
+            }
+        } elseif (@getimagesize((string) $f['tmp_name']) === false) {
+            throw new \RuntimeException('File bukan gambar valid.');
+        }
+        $dir = BASE_PATH . '/storage/uploads/social';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0750, true);
+        }
+        $name = bin2hex(random_bytes(12)) . '.' . $ext; // 24 hex → cocok regex media
+        if (!move_uploaded_file((string) $f['tmp_name'], $dir . '/' . $name)) {
+            throw new \RuntimeException('Gagal menyimpan media.');
+        }
+        return $name;
     }
 
     /** Upload foto postingan: jpg/png/webp/gif ≤ 4MB → storage/uploads/social. */

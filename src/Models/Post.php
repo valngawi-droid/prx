@@ -11,27 +11,64 @@ use ChiperX\Core\Database;
  */
 final class Post
 {
-    /** Feed terbaru (bergabung info penulis + flag apakah $viewerId menyukai). */
+    /** Feed terbaru (bergabung info penulis + flag apakah $viewerId menyukai). Tersembunyi: arsip milik ORANG LAIN. */
     public static function feed(int $limit = 20, int $viewerId = 0): array
     {
         return Database::all(
-            'SELECT p.id, p.user_id, p.body, p.image, p.likes_count, p.comments_count, p.created_at,
+            'SELECT p.id, p.user_id, p.body, p.image, p.likes_count, p.comments_count, p.created_at, p.is_archived,
                     u.name, u.username, u.role, u.badges, u.avatar,
                     EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS liked,
                     EXISTS(SELECT 1 FROM bookmarks bm WHERE bm.post_id = p.id AND bm.user_id = ?) AS saved
              FROM posts p JOIN users u ON u.id = p.user_id
+             WHERE p.is_archived = 0 OR p.user_id = ?
              ORDER BY p.id DESC LIMIT ' . max(1, $limit),
-            [$viewerId, $viewerId]
+            [$viewerId, $viewerId, $viewerId]
         );
     }
 
-    /** Postingan milik satu user (untuk profil publik). */
-    public static function forUser(int $userId, int $limit = 9): array
+    /** Postingan milik satu user (untuk profil publik) — tanpa yang diarsipkan. */
+    public static function forUser(int $userId, int $limit = 9, bool $includeArchived = false): array
+    {
+        $sql = 'SELECT p.id, p.body, p.image, p.likes_count, p.comments_count, p.created_at, p.is_archived
+             FROM posts p WHERE p.user_id = ?';
+        if (!$includeArchived) {
+            $sql .= ' AND p.is_archived = 0';
+        }
+        $sql .= ' ORDER BY p.id DESC LIMIT ' . max(1, $limit);
+        return Database::all($sql, [$userId]);
+    }
+
+    /** 🧭 Jelajah (Explore): grid semua postingan bergambar terbaru. */
+    public static function explore(int $limit = 60): array
     {
         return Database::all(
-            'SELECT p.id, p.body, p.image, p.likes_count, p.comments_count, p.created_at
-             FROM posts p WHERE p.user_id = ? ORDER BY p.id DESC LIMIT ' . max(1, $limit),
-            [$userId]
+            'SELECT p.id, p.body, p.image, p.likes_count, p.comments_count, p.created_at,
+                    u.name, u.username, u.avatar
+             FROM posts p JOIN users u ON u.id = p.user_id
+             WHERE p.image IS NOT NULL AND p.image != "" AND p.is_archived = 0
+             ORDER BY p.id DESC LIMIT ' . max(1, $limit)
+        );
+    }
+
+    /** 📥 Toggle arsip (milik sendiri) → true bila SEKARANG terarsip. */
+    public static function toggleArchive(int $id, int $userId): bool
+    {
+        $cur = Database::value('SELECT is_archived FROM posts WHERE id = ? AND user_id = ?', [$id, $userId]);
+        if ($cur === null) {
+            return false;
+        }
+        Database::run('UPDATE posts SET is_archived = 1 - is_archived WHERE id = ? AND user_id = ?', [$id, $userId]);
+        return (int) Database::value('SELECT is_archived FROM posts WHERE id = ?', [$id]) === 1;
+    }
+
+    /** ❤️ Daftar penyuka postingan (nama & username, maks 50). */
+    public static function likers(int $postId, int $limit = 50): array
+    {
+        return Database::all(
+            'SELECT u.name, u.username, u.avatar, u.role, u.badges
+             FROM post_likes pl JOIN users u ON u.id = pl.user_id
+             WHERE pl.post_id = ? ORDER BY pl.created_at DESC LIMIT ' . max(1, $limit),
+            [$postId]
         );
     }
 
@@ -70,24 +107,29 @@ final class Post
         });
     }
 
-    /** Tambah komentar atomik (naikkan counter). */
-    public static function addComment(int $postId, int $userId, string $body): void
+    /** Tambah komentar atomik (naikkan counter). $parentId = balasan komentar (IG style). */
+    public static function addComment(int $postId, int $userId, string $body, ?int $parentId = null): void
     {
-        Database::transaction(static function () use ($postId, $userId, $body): void {
+        Database::transaction(static function () use ($postId, $userId, $body, $parentId): void {
             Database::run(
-                'INSERT INTO post_comments (post_id, user_id, body) VALUES (?, ?, ?)',
-                [$postId, $userId, mb_substr(trim($body), 0, 300)]
+                'INSERT INTO post_comments (post_id, user_id, body, parent_id) VALUES (?, ?, ?, ?)',
+                [$postId, $userId, mb_substr(trim($body), 0, 300), $parentId]
             );
             Database::run('UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?', [$postId]);
         });
     }
 
-    /** Komentar per postingan (terlama → terbaru). */
+    /** Komentar per postingan (terlama → terbaru) + info komentar yang dibalas. */
     public static function comments(int $postId, int $limit = 30): array
     {
         return Database::all(
-            'SELECT c.id, c.user_id, c.body, c.created_at, u.name, u.username, u.role, u.badges, u.avatar
-             FROM post_comments c JOIN users u ON u.id = c.user_id
+            'SELECT c.id, c.user_id, c.body, c.created_at, c.parent_id,
+                    pu.username AS parent_username, pu.name AS parent_name,
+                    u.name, u.username, u.role, u.badges, u.avatar
+             FROM post_comments c
+             JOIN users u ON u.id = c.user_id
+             LEFT JOIN post_comments pc ON pc.id = c.parent_id
+             LEFT JOIN users pu ON pu.id = pc.user_id
              WHERE c.post_id = ? ORDER BY c.id ASC LIMIT ' . max(1, $limit),
             [$postId]
         );

@@ -32,7 +32,7 @@ final class ProfileController extends Controller
             'p'      => $this->stats((int) $user['id']),
             'target' => $user,
             'isSelf' => true,
-            'posts'  => $this->safePosts((int) $user['id']),
+            'posts'  => $this->safePosts((int) $user['id'], true), // pemilik juga melihat arsipnya
         ]);
     }
 
@@ -223,7 +223,7 @@ final class ProfileController extends Controller
             'p'          => $this->stats($tid),
             'target'     => $target,
             'isSelf'     => $me && (int) $me['id'] === $tid,
-            'posts'      => $this->safePosts($tid),
+            'posts'      => $this->safePosts($tid, $me && (int) $me['id'] === $tid),
             'followers'  => \ChiperX\Models\Follow::followersCount($tid),
             'following'  => \ChiperX\Models\Follow::followingCount($tid),
             'isFollowing' => $me ? \ChiperX\Models\Follow::isFollowing((int) $me['id'], $tid) : false,
@@ -255,11 +255,11 @@ final class ProfileController extends Controller
         return redirect('/profil/@' . rawurlencode($uname));
     }
 
-    /** Postingan profil — aman bila tabel sosial belum dimigrasi. */
-    private function safePosts(int $userId): array
+    /** Postingan profil — aman bila tabel sosial belum dimigrasi. Pemilik melihat juga arsipnya. */
+    private function safePosts(int $userId, bool $includeArchived = false): array
     {
         try {
-            return Post::forUser($userId, 9);
+            return Post::forUser($userId, 9, $includeArchived);
         } catch (\Throwable) {
             return [];
         }

@@ -130,6 +130,9 @@ if (!preg_match('/^#[0-9a-fA-F]{6}$/', $tAccent)) { $tAccent = ''; }
             <div class="grid grid-cols-3 gap-1.5 sm:gap-2">
                 <?php foreach ($posts as $pp): ?>
                     <a href="/komunitas#p<?= (int) $pp['id'] ?>" class="group relative aspect-square rounded-xl overflow-hidden border border-white/5 <?= empty($pp['image']) ? 'bg-gradient-to-br from-violet-800/30 to-cyan-800/20 p-2.5' : '' ?>">
+                        <?php if (!empty($pp['is_archived'])): ?>
+                            <span class="absolute top-1.5 left-1.5 z-10 text-[9px] px-1.5 py-0.5 rounded-md bg-black/70 text-cyan-300 font-bold border border-cyan-400/40">📥 ARSIP</span>
+                        <?php endif; ?>
                         <?php if (!empty($pp['image'])): ?>
                             <img src="/media/social/<?= e($pp['image']) ?>" alt="postingan" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         <?php else: ?>

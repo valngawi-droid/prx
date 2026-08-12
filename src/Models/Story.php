@@ -76,6 +76,41 @@ final class Story
         Database::run('DELETE FROM stories WHERE id = ?', [$id]);
     }
 
+    // ---------------- 👀 STORY VIEWS (gaya Instagram) ----------------
+
+    /** Catat view (sekali per user per story). */
+    public static function recordView(int $storyId, int $userId): void
+    {
+        try {
+            Database::run('INSERT IGNORE INTO story_views (story_id, user_id) VALUES (?, ?)', [$storyId, $userId]);
+        } catch (\Throwable) {
+        }
+    }
+
+    /** Daftar penonton sebuah story (pemilik saja yang melihat ini di UI). */
+    public static function viewers(int $storyId, int $limit = 50): array
+    {
+        try {
+            return Database::all(
+                'SELECT v.user_id, v.viewed_at, u.name, u.username, u.avatar
+                 FROM story_views v JOIN users u ON u.id = v.user_id
+                 WHERE v.story_id = ? ORDER BY v.viewed_at DESC LIMIT ' . max(1, $limit),
+                [$storyId]
+            );
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    public static function viewCount(int $storyId): int
+    {
+        try {
+            return (int) (Database::value('SELECT COUNT(*) FROM story_views WHERE story_id = ?', [$storyId]) ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     /** Bersihkan story kedaluwarsa (>2 hari) — dipanggil sesekali. */
     public static function prune(): void
     {

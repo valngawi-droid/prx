@@ -14,7 +14,7 @@ $canDel = $me && ((int) $me['id'] === (int) $target['id'] || in_array($me['role'
 
         <!-- kepala -->
         <div class="absolute top-6 inset-x-0 z-20 flex items-center gap-2.5 px-3">
-            <a href="/profil/@<?= e($tuser) ?>" class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900 text-xs shrink-0"><?= e(strtoupper(mb_substr((string) $target['name'], 0, 1))) ?></a>
+            <a href="/profil/@<?= e($tuser) ?>" class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900 text-xs shrink-0 overflow-hidden"><?php if (!empty($target['avatar'] ?? '')): ?><img src="/media/avatar/<?= e((string) $target['avatar']) ?>" alt="" class="w-full h-full object-cover"><?php else: ?><?= e(strtoupper(mb_substr((string) $target['name'], 0, 1))) ?><?php endif; ?></a>
             <div class="min-w-0 flex-1">
                 <p class="text-white text-sm font-semibold truncate drop-shadow"><?= e($target['name']) ?> <?= user_is_vip($target) ? '💎' : '' ?></p>
                 <p id="stTime" class="text-white/60 text-[10px]"></p>
@@ -41,6 +41,26 @@ $canDel = $me && ((int) $me['id'] === (int) $target['id'] || in_array($me['role'
         <?php endif; ?>
     </div>
     <p class="text-center text-[11px] text-slate-600 mt-4">Story menghilang otomatis setelah 24 jam ⏰ · ketuk kanan untuk lanjut</p>
+
+    <?php if ($me && (int) $me['id'] === (int) $target['id']): ?>
+    <!-- 👀 Insight penonton (hanya pemilik story — gaya Instagram) -->
+    <div class="glass-card mt-5 p-4" data-anim="fade-up">
+        <p class="text-xs font-bold text-white mb-2.5">👀 Dilihat oleh <b class="text-neon-cyan"><?= count($viewers ?? []) ?></b> member</p>
+        <?php if (!empty($viewers)): ?>
+            <div class="space-y-2 max-h-40 overflow-y-auto">
+                <?php foreach ($viewers as $v): ?>
+                    <a href="/profil/@<?= e(rawurlencode((string) $v['username'])) ?>" class="flex items-center gap-2.5 text-xs hover:bg-white/5 rounded-lg px-1.5 py-1 transition">
+                        <span class="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center text-[9px] font-bold text-slate-900 overflow-hidden shrink-0"><?php if (!empty($v['avatar'])): ?><img src="/media/avatar/<?= e((string) $v['avatar']) ?>" class="w-full h-full object-cover" alt=""><?php else: ?><?= e(strtoupper(mb_substr((string) $v['name'], 0, 1))) ?><?php endif; ?></span>
+                        <span class="text-slate-300 truncate"><?= e($v['name']) ?></span>
+                        <span class="ml-auto text-[10px] text-slate-600 shrink-0"><?= e(waktu_lalu((string) $v['viewed_at'])) ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p class="text-[11px] text-slate-600">Belum ada yang lihat — bagikan link story-mu! 📣</p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 </section>
 
 <script>
