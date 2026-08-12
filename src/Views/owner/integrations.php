@@ -136,7 +136,7 @@ $fromMismatch = $drvNow === 'kirimemail' && $keDom !== '' && !str_ends_with(strt
         <div class="grid md:grid-cols-3 gap-4">
             <div><label class="text-xs text-slate-400">KIRIMEMAIL_API_KEY <span class="text-slate-600">(key_…)</span></label><input name="KIRIMEMAIL_API_KEY" value="<?= e((string) $v['KIRIMEMAIL_API_KEY']) ?>" class="form-input w-full text-sm mt-1 font-mono" placeholder="key_xxxxxxxxxxxxxxxx"></div>
             <div><label class="text-xs text-slate-400">KIRIMEMAIL_API_SECRET</label><input name="KIRIMEMAIL_API_SECRET" value="<?= e((string) $v['KIRIMEMAIL_API_SECRET']) ?>" class="form-input w-full text-sm mt-1 font-mono" placeholder="64 karakter hex"></div>
-            <div><label class="text-xs text-slate-400">KIRIMEMAIL_DOMAIN</label><input name="KIRIMEMAIL_DOMAIN" value="<?= e((string) $v['KIRIMEMAIL_DOMAIN']) ?>" class="form-input w-full text-sm mt-1 font-mono" placeholder="chiperx.cyou"></div>
+            <div><label class="text-xs text-slate-400">KIRIMEMAIL_DOMAIN <span class="text-amber-400">(domain pengirim — BUKAN host smtp!)</span></label><input name="KIRIMEMAIL_DOMAIN" value="<?= e((string) $v['KIRIMEMAIL_DOMAIN']) ?>" class="form-input w-full text-sm mt-1 font-mono" placeholder="chiperx.cyou ← domainmu, bukan smtp.kirimemail.com"></div>
         </div>
         <div class="rounded-xl border border-orange-400/25 bg-orange-500/5 p-4 text-xs text-slate-300 leading-relaxed">
             <p class="font-bold text-orange-300">📮 Setup Kirim.Email (sesuai kredensial kamu):</p>

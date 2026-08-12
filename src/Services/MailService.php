@@ -46,6 +46,16 @@ final class MailService
             if ($ke['domain'] === '') {
                 return ['ok' => false, 'message' => 'KIRIMEMAIL_DOMAIN masih kosong (contoh: chiperx.cyou) — isi lalu Simpan.'];
             }
+            // Anti-ketuker: KIRIMEMAIL_DOMAIN harus domain PENGIRIM (bagian @ dari
+            // MAIL_FROM_ADDRESS), BUKAN host SMTP seperti smtp.kirimemail.com.
+            $fromDom = '';
+            $fromAddr = (string) Config::smtp()['from'];
+            if (str_contains($fromAddr, '@')) {
+                $fromDom = substr($fromAddr, (int) strpos($fromAddr, '@') + 1);
+            }
+            if ($fromDom !== '' && mb_strtolower($ke['domain']) !== mb_strtolower($fromDom)) {
+                return ['ok' => false, 'message' => "KIRIMEMAIL_DOMAIN salah isi (\"{$ke['domain']}\"). Yang benar = domain dari MAIL_FROM_ADDRESS-mu: \"{$fromDom}\" — bukan host smtp.*. Perbaiki lalu Simpan."];
+            }
             $host = parse_url($ke['api_url'], PHP_URL_HOST);
             $host = is_string($host) && $host !== '' ? $host : 'smtp-app.kirim.email';
             $errno = 0;
@@ -271,7 +281,15 @@ final class MailService
         if ($code >= 200 && $code < 300) {
             return true;
         }
-        return $fail("API menolak (HTTP {$code}): " . substr(trim((string) $resp), 0, 400));
+        $hint = '';
+        $respStr = trim((string) $resp);
+        if ($code === 404 && stripos($respStr, 'Domain not found') !== false) {
+            $fromDom = str_contains($from, '@') ? substr($from, (int) strpos($from, '@') + 1) : '?';
+            $hint = " → Maksudnya: KIRIMEMAIL_DOMAIN (\"{$domain}\") tidak terdaftar di akun Kirim.Email-mu. Isi dengan domain pengirim: \"{$fromDom}\" (bukan host smtp.kirimemail.com).";
+        } elseif ($code === 401 || $code === 403) {
+            $hint = ' → API key/secret salah atau belum aktif — salin ulang dari dashboard app.kirim.email → Transactional → API.';
+        }
+        return $fail("API menolak (HTTP {$code}): " . substr($respStr, 0, 400) . $hint);
     }
 
     /** Mode log-aktif bila MAIL_DRIVER=log atau kredensial SMTP masih kosong. */
