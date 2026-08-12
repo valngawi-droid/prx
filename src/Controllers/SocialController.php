@@ -40,12 +40,90 @@ final class SocialController extends Controller
                 $comments[(int) $p['id']] = [];
             }
         }
+        $storiesBar = [];
+        try {
+            $storiesBar = \ChiperX\Models\Story::activeBar(12);
+        } catch (\Throwable) {
+        }
         return $this->view('social/feed', [
             'title'    => 'Komunitas',
             'posts'    => $posts,
             'comments' => $comments,
             'me'       => $me,
+            'stories'  => $storiesBar,
         ]);
+    }
+
+    /** POST /komunitas/story — unggah Story 24 jam (foto wajib + caption opsional). */
+    public function storyStore(Request $req): Response
+    {
+        $this->guardCsrf();
+        $user = auth_user();
+        $uid  = (int) $user['id'];
+
+        $last = \ChiperX\Models\Story::lastPostedAt($uid);
+        if ($last !== null && (time() - strtotime($last)) < 30) {
+            flash('warning', 'Story baru tiap 30 detik ya. ⏱️');
+            return redirect('/komunitas');
+        }
+        try {
+            $image = $this->handleImageUpload();
+        } catch (\RuntimeException $e) {
+            flash('error', $e->getMessage());
+            return redirect('/komunitas');
+        }
+        if ($image === null) {
+            flash('error', 'Story butuh foto — pilih gambarmu dulu. 📷');
+            return redirect('/komunitas');
+        }
+        \ChiperX\Models\Story::create($uid, $image, $req->str('caption', '', 120));
+        if (random_int(1, 100) <= 10) {
+            \ChiperX\Models\Story::prune();
+        }
+        flash('success', 'Story terpasang 24 jam! ✨');
+        return redirect('/komunitas');
+    }
+
+    /** GET /story/{username} — penonton story slide (publik). */
+    public function storyShow(Request $req, array $params): Response|string
+    {
+        $target = \ChiperX\Models\User::findByUsername((string) ($params['username'] ?? ''));
+        if (!$target) {
+            http_response_code(404);
+            return $this->view('errors/404', ['title' => 'Pengguna tidak ditemukan']);
+        }
+        $stories = [];
+        try {
+            $stories = \ChiperX\Models\Story::byUser((int) $target['id']);
+        } catch (\Throwable) {
+        }
+        if (!$stories) {
+            flash('warning', 'Story-nya sudah kedaluwarsa (berlaku 24 jam). ⏰');
+            return redirect('/komunitas');
+        }
+        return $this->view('social/story', [
+            'title'   => 'Story — ' . $target['name'],
+            'target'  => $target,
+            'stories' => $stories,
+            'me'      => auth_user(),
+        ]);
+    }
+
+    /** POST /story/{id}/delete — hapus story sendiri (admin/owner boleh). */
+    public function storyDelete(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $user  = auth_user();
+        $id    = (int) ($params['id'] ?? 0);
+        $story = \ChiperX\Models\Story::find($id);
+        $can   = $story && ((int) $story['user_id'] === (int) $user['id'] || in_array($user['role'], ['admin', 'owner'], true));
+        if (!$can) {
+            flash('error', 'Kamu tidak berhak menghapus story ini.');
+            return redirect('/komunitas');
+        }
+        \ChiperX\Models\Story::delete($id);
+        flash('success', 'Story dihapus. 🗑️');
+        return redirect('/komunitas');
     }
 
     public function store(Request $req): Response

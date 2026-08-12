@@ -4,14 +4,20 @@
     <!-- kepala chat -->
     <header class="flex items-center gap-3 mb-4 glass-card p-3 sm:p-4" data-anim="fade-up">
         <a href="/pesan" class="text-slate-400 hover:text-white transition px-1 py-1" title="Kembali">←</a>
-        <a href="/u/<?= e($tuser) ?>" class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900"><?= e(strtoupper(mb_substr((string) $target['name'], 0, 1))) ?></a>
+        <a href="/profil/@<?= e($tuser) ?>" class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-bold text-slate-900"><?= e(strtoupper(mb_substr((string) $target['name'], 0, 1))) ?></a>
         <div class="min-w-0 flex-1">
             <p class="font-semibold text-white text-sm truncate flex items-center gap-1.5 flex-wrap">
-                <?= e($target['name']) ?> <?= user_badges(['role' => $target['role'], 'badges' => $target['badges'] ?? '']) ?>
+                <?php if (user_is_vip($target)): ?>
+                    <span class="bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 bg-clip-text text-transparent font-bold"><?= e($target['name']) ?> 💎</span>
+                <?php else: ?>
+                    <?= e($target['name']) ?>
+                <?php endif; ?>
+                <?= user_badges(['role' => $target['role'], 'badges' => $target['badges'] ?? '']) ?>
             </p>
-            <p class="text-[11px] text-slate-500 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>@<?= e($target['username']) ?> · live 8 dtk</p>
+            <?php $onl = online_label($target['last_activity'] ?? null); ?>
+            <p class="text-[11px] flex items-center gap-1 <?= $onl === '🟢 Online' ? 'text-emerald-400 font-semibold' : 'text-slate-500' ?>"><?= e($onl ?? '@' . (string) $target['username']) ?> · live 8 dtk</p>
         </div>
-        <a href="/u/<?= e($tuser) ?>" class="text-xs text-neon-cyan hover:underline shrink-0 px-2">Lihat Profil</a>
+        <a href="/profil/@<?= e($tuser) ?>" class="text-xs text-neon-cyan hover:underline shrink-0 px-2">Lihat Profil</a>
     </header>
 
     <!-- gelembung pesan (diisi JS) -->

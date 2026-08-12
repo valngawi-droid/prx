@@ -93,7 +93,7 @@ final class MessageController extends Controller
     }
 
     /** JSON pesan-pesan thread (polling 8 detik dari view). */
-    public function json(Request $req, array $params): Response
+    public function poll(Request $req, array $params): Response
     {
         $user   = auth_user();
         $target = User::findByUsername((string) ($params['username'] ?? ''));

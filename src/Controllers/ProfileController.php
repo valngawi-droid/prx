@@ -65,21 +65,58 @@ final class ProfileController extends Controller
         return redirect('/profil');
     }
 
+    /** GET /u/{username} (lamanet) → alihkan ke format sosial /profil/@username. */
+    public function legacyRedirect(Request $req, array $params): Response
+    {
+        $uname = ltrim((string) ($params['username'] ?? ''), '@');
+        return redirect('/profil/@' . rawurlencode($uname));
+    }
+
     public function publicShow(Request $req, array $params): Response|string
     {
-        $target = User::findByUsername((string) ($params['username'] ?? ''));
+        $uname  = ltrim((string) ($params['username'] ?? ''), '@');
+        $target = User::findByUsername($uname);
         if (!$target) {
             http_response_code(404);
             return $this->view('errors/404', ['title' => 'Pengguna tidak ditemukan']);
         }
         $me = auth_user();
+        $tid = (int) $target['id'];
         return $this->view('profile/show', [
-            'title'  => $target['name'],
-            'p'      => $this->stats((int) $target['id']),
-            'target' => $target,
-            'isSelf' => $me && (int) $me['id'] === (int) $target['id'],
-            'posts'  => $this->safePosts((int) $target['id']),
+            'title'      => $target['name'],
+            'p'          => $this->stats($tid),
+            'target'     => $target,
+            'isSelf'     => $me && (int) $me['id'] === $tid,
+            'posts'      => $this->safePosts($tid),
+            'followers'  => \ChiperX\Models\Follow::followersCount($tid),
+            'following'  => \ChiperX\Models\Follow::followingCount($tid),
+            'isFollowing' => $me ? \ChiperX\Models\Follow::isFollowing((int) $me['id'], $tid) : false,
+            'storyCount' => $this->safeStoryCount($tid),
         ]);
+    }
+
+    /** POST /profil/@{username}/follow — ikuti / batal mengikuti (atomik). */
+    public function follow(Request $req, array $params): Response
+    {
+        Csrf::abortIfInvalid();
+        $me = auth_user();
+        if (!$me) {
+            return redirect('/login');
+        }
+        $uname  = ltrim((string) ($params['username'] ?? ''), '@');
+        $target = User::findByUsername($uname);
+        if (!$target || (int) $target['id'] === (int) $me['id']) {
+            flash('error', 'Tidak bisa mengikuti akun ini.');
+            return redirect('/profil/@' . rawurlencode($uname));
+        }
+        $res = \ChiperX\Models\Follow::toggle((int) $me['id'], (int) $target['id']);
+        if ($res['following']) {
+            \ChiperX\Models\Notification::add((int) $target['id'], '➕ ' . $me['name'] . ' mulai mengikutimu!', null, '/profil/@' . rawurlencode((string) $me['username']));
+            flash('success', 'Kamu sekarang mengikuti ' . $target['name'] . '! ➕');
+        } else {
+            flash('success', 'Berhenti mengikuti ' . $target['name'] . '.');
+        }
+        return redirect('/profil/@' . rawurlencode($uname));
     }
 
     /** Postingan profil — aman bila tabel sosial belum dimigrasi. */
@@ -107,6 +144,15 @@ final class ProfileController extends Controller
     {
         try {
             return Post::countByUser($userId);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    private function safeStoryCount(int $userId): int
+    {
+        try {
+            return \ChiperX\Models\Story::activeCount($userId);
         } catch (\Throwable) {
             return 0;
         }

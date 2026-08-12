@@ -5,6 +5,9 @@ $inisial  = strtoupper(mb_substr($t['name'] ?? 'U', 0, 1));
 $roleEmoji = ['owner' => '👑', 'admin' => '🛡️', 'user' => '🎮'][$t['role'] ?? 'user'];
 $tuser    = rawurlencode((string) ($t['username'] ?? ''));
 $bio      = trim((string) ($t['bio'] ?? ''));
+$vip      = user_is_vip($t);
+$online   = online_label($t['last_activity'] ?? null);
+$hasStory = (int) ($storyCount ?? 0) > 0;
 ?>
 <section class="px-4 sm:px-6 py-10 sm:py-14">
     <div class="max-w-3xl mx-auto space-y-6">
@@ -14,16 +17,26 @@ $bio      = trim((string) ($t['bio'] ?? ''));
             <div class="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-violet-700/20 blur-[90px] pointer-events-none"></div>
             <div class="flex flex-col sm:flex-row items-center gap-6">
                 <div class="relative shrink-0">
-                    <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-violet-600 to-cyan-400 grid place-items-center font-display text-4xl font-bold text-white shadow-[0_0_45px_rgba(139,92,246,.45)]">
-                        <?= e($inisial) ?>
-                    </div>
+                    <?php
+                    $avatarOpen  = $hasStory ? '<a href="/story/' . e($tuser) . '" title="Lihat Story" class="block rounded-[1.6rem] p-[3px] bg-gradient-to-tr from-violet-500 via-fuchsia-500 to-cyan-400 shadow-[0_0_24px_rgba(168,85,247,.5)] cursor-pointer hover:scale-105 transition">' : '<div class="block rounded-[1.6rem]">';
+                    $avatarClose = $hasStory ? '</a>' : '</div>';
+                    $avatarCls   = $vip ? 'ring-2 ring-amber-400 shadow-[0_0_45px_rgba(251,191,36,.5)]' : 'shadow-[0_0_45px_rgba(139,92,246,.45)]';
+                    ?>
+                    <?= $avatarOpen ?>
+                        <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-violet-600 to-cyan-400 grid place-items-center font-display text-4xl font-bold text-white <?= $avatarCls ?>">
+                            <?= e($inisial) ?>
+                        </div>
+                    <?= $avatarClose ?>
                     <span class="absolute -bottom-2 -right-2 text-2xl"><?= $roleEmoji ?></span>
                 </div>
                 <div class="text-center sm:text-left min-w-0 flex-1">
-                    <h1 class="font-display text-2xl sm:text-3xl font-bold text-white flex items-center gap-2 justify-center sm:justify-start flex-wrap">
-                        <?= e($t['name']) ?>
+                    <h1 class="font-display text-2xl sm:text-3xl font-bold flex items-center gap-2 justify-center sm:justify-start flex-wrap <?= $vip ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(251,191,36,.5)]' : 'text-white' ?>">
+                        <?= e($t['name']) ?><?= $vip ? ' 💎' : '' ?>
                     </h1>
                     <p class="text-sm text-slate-400 font-mono mt-0.5">@<?= e($t['username'] ?? '—') ?></p>
+                    <?php if ($online): ?>
+                        <p class="text-[11px] mt-1 <?= $online === '🟢 Online' ? 'text-emerald-400 font-semibold' : 'text-slate-500' ?>"><?= e($online) ?></p>
+                    <?php endif; ?>
                     <!-- TAGS — role + verified + kustom -->
                     <div class="mt-3 flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                         <?= user_badges($t) ?>
@@ -36,12 +49,24 @@ $bio      = trim((string) ($t['bio'] ?? ''));
                     <?php endif; ?>
                     <p class="mt-1 text-[11px] text-slate-600">Bergabung <?= e(date('d M Y', strtotime((string) $t['created_at']))) ?> WIB</p>
 
-                    <!-- Aksi sosial -->
+                    <!-- Pengikut / Mengikuti (ala Instagram) -->
+                    <p class="mt-3 text-xs text-slate-400 flex items-center gap-4 justify-center sm:justify-start">
+                        <span><b class="text-white text-sm"><?= e(singkat((int) ($followers ?? 0))) ?></b> Pengikut</span>
+                        <span><b class="text-white text-sm"><?= e(singkat((int) ($following ?? 0))) ?></b> Mengikuti</span>
+                    </p>
+
+                    <!-- Aksi sosial: Ikuti + DM + salin tautan -->
                     <div class="mt-4 flex items-center gap-2 justify-center sm:justify-start flex-wrap">
                         <?php if (!$isSelf && is_logged_in()): ?>
-                            <a href="/pesan/<?= e($tuser) ?>" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-sm font-bold hover:opacity-90 transition shadow-lg shadow-violet-600/25">✉️ Kirim Pesan</a>
+                            <form method="post" action="/profil/@<?= e($tuser) ?>/follow">
+                                <?= csrf_field() ?>
+                                <button class="px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-lg <?= $isFollowing ? 'bg-white/10 border border-white/15 text-slate-300 hover:bg-white/15 shadow-none' : 'bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white hover:opacity-90 shadow-fuchsia-600/25' ?>">
+                                    <?= $isFollowing ? '✓ Mengikuti' : '➕ Ikuti' ?>
+                                </button>
+                            </form>
+                            <a href="/pesan/<?= e($tuser) ?>" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-sm font-bold hover:opacity-90 transition shadow-lg shadow-violet-600/25">✉️ Pesan</a>
                         <?php elseif (!$isSelf): ?>
-                            <a href="/login" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-sm font-bold">Masuk untuk Chat ✉️</a>
+                            <a href="/login" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-sm font-bold">Masuk untuk Ikuti & Chat ✉️</a>
                         <?php else: ?>
                             <a href="/profil" class="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm font-semibold hover:bg-white/10 transition">✏️ Edit Profil</a>
                         <?php endif; ?>

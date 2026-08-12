@@ -105,6 +105,11 @@ function auth_user(): ?array
                 $found = \ChiperX\Models\User::find((int) $id);
                 if ($found && ($found['status'] ?? 'active') === 'active') {
                     $user = $found;
+                    // Ping status online — max 1x menit per sesi (hemat DB di HP)
+                    if ((int) (Session::get('last_ping') ?? 0) < time() - 60) {
+                        Session::set('last_ping', time());
+                        \ChiperX\Models\User::touchActivity((int) $id);
+                    }
                 } else {
                     // Akun hilang/di-ban → paksa logout
                     Session::destroy();
@@ -150,6 +155,26 @@ function user_badges(array $user): string
         $out .= '<span class="badge badge-custom">' . e($tag) . '</span>';
     }
     return $out;
+}
+
+/** Apakah user memegang tag 💎 VIP / ⭐ Premium (fitur premium). */
+function user_is_vip(array $user): bool
+{
+    $tags = (string) ($user['badges'] ?? '');
+    return (bool) preg_match('~vip|premium~i', $tags);
+}
+
+/** Label kehadiran: 🟢 Online (<3 mnt) / "Aktif Xm lalu" / null (belum pernah). */
+function online_label(?string $lastActivity): ?string
+{
+    if (!$lastActivity) {
+        return null;
+    }
+    $diff = time() - strtotime($lastActivity);
+    if ($diff < 180) {
+        return '🟢 Online';
+    }
+    return 'Aktif ' . waktu_lalu($lastActivity);
 }
 
 /**

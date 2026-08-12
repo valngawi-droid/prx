@@ -61,6 +61,12 @@ final class DashboardController extends Controller
         $user = auth_user();
         $base = max(0, (int) (Setting::get('daily_bonus') ?? '15'));
 
+        // 💎 Fitur Premium: pemegang tag VIP/Premium → bonus harian 2× lipat
+        $isVip = user_is_vip($user);
+        if ($isVip) {
+            $base *= 2;
+        }
+
         $res = User::claimDailyStreak((int) $user['id'], $base);
         if (!$res['ok']) {
             flash('warning', 'Bonus harian sudah Anda klaim hari ini. Kembali lagi setelah 00:00 WIB! ⏰');
@@ -75,7 +81,8 @@ final class DashboardController extends Controller
             ]);
         }
         $api = ['day' => (int) $res['streak']];
-        flash('success', "Hari ke-{$api['day']} beruntun! +{$res['reward']} ChiperX Coin diklaim! 🎁 Besok: hari ke-" . min(7, (int) $res['streak'] + 1) . ' 🔥');
+        $vipTag = $isVip ? ' 💎 VIP ×2!' : '';
+        flash('success', "Hari ke-{$api['day']} beruntun! +{$res['reward']} ChiperX Coin diklaim! 🎁{$vipTag} Besok: hari ke-" . min(7, (int) $res['streak'] + 1) . ' 🔥');
         return redirect('/dashboard');
     }
 

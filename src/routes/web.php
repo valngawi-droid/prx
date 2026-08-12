@@ -69,7 +69,11 @@ return static function (Router $r): void {
     // ---------------- PROFIL (tag role + centang biru + tags kustom) ----------------
     $r->get('/profil', [ProfileController::class, 'show'], AuthMiddleware::class);
     $r->post('/profil', [ProfileController::class, 'update'], AuthMiddleware::class);
-    $r->get('/u/{username}', [ProfileController::class, 'publicShow']);
+    // Format sosial: /profil/@username (ala sosmed), kompatibel tanpa '@'
+    $r->post('/profil/@{username}/follow', [ProfileController::class, 'follow'], AuthMiddleware::class);
+    $r->get('/profil/@{username}', [ProfileController::class, 'publicShow']);
+    $r->get('/profil/{username}', [ProfileController::class, 'publicShow']);
+    $r->get('/u/{username}', [ProfileController::class, 'legacyRedirect']); // format lama → dialihkan
 
     // ---------------- KOMUNITAS v2.2 (feed ala Instagram/Facebook) ----------------
     $r->get('/komunitas', [SocialController::class, 'feed']);
@@ -80,11 +84,16 @@ return static function (Router $r): void {
     $r->post('/komunitas/{id}/delete', [SocialController::class, 'deletePost'], AuthMiddleware::class);
     $r->post('/komunitas/komentar/{id}/delete', [SocialController::class, 'deleteComment'], AuthMiddleware::class);
 
+    // ---------------- STORIES 24 JAM v2.3 (ala WA Status / IG Story) ----------------
+    $r->post('/komunitas/story', [SocialController::class, 'storyStore'], AuthMiddleware::class);
+    $r->get('/story/{username}', [SocialController::class, 'storyShow']);
+    $r->post('/story/{id}/delete', [SocialController::class, 'storyDelete'], AuthMiddleware::class);
+
     // ---------------- PESAN PRIBADI v2.2 (DM ala WhatsApp/Telegram) ----------------
     $r->get('/pesan', [MessageController::class, 'index'], AuthMiddleware::class);
     $r->get('/pesan/{username}', [MessageController::class, 'thread'], AuthMiddleware::class);
     $r->post('/pesan/{username}', [MessageController::class, 'send'], AuthMiddleware::class);
-    $r->get('/pesan/{username}/json', [MessageController::class, 'json'], AuthMiddleware::class);
+    $r->get('/pesan/{username}/json', [MessageController::class, 'poll'], AuthMiddleware::class);
 
     // ---------------- NOTIFIKASI (lonceng 🔔) ----------------
     $r->get('/notifikasi', [NotificationController::class, 'index'], AuthMiddleware::class);

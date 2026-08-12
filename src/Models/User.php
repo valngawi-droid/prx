@@ -324,4 +324,14 @@ final class User
         $bio = trim($bio);
         Database::run('UPDATE users SET bio = ? WHERE id = ?', [$bio !== '' ? mb_substr($bio, 0, 160) : null, $id]);
     }
+
+    /** Tandai user sedang aktif (status online) — dipanggil throttled dari auth_user(). */
+    public static function touchActivity(int $id): void
+    {
+        try {
+            Database::run('UPDATE users SET last_activity = NOW() WHERE id = ?', [$id]);
+        } catch (\Throwable) {
+            // kolom last_activity mungkin belum dimigrasi — abaikan senyap
+        }
+    }
 }

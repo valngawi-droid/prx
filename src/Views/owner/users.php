@@ -64,7 +64,7 @@
                         <form method="post" action="/owner/users/<?= (int) $usr['id'] ?>/verify" title="Toggle centang biru"><?= csrf_field() ?>
                             <button class="px-3 py-1.5 rounded-lg text-xs <?= !empty($usr['is_verified']) ? 'bg-sky-500/20 text-sky-300' : 'bg-white/5 text-slate-500' ?>"><?= !empty($usr['is_verified']) ? '✓ Verified' : '✓?' ?></button>
                         </form>
-                        <a href="/u/<?= e(rawurlencode((string) ($usr['username'] ?? ''))) ?>" target="_blank" title="Lihat profil publik" class="px-3 py-1.5 rounded-lg bg-white/10 text-xs hover:bg-white/15">👤</a>
+                        <a href="/profil/@<?= e(rawurlencode((string) ($usr['username'] ?? ''))) ?>" target="_blank" title="Lihat profil publik" class="px-3 py-1.5 rounded-lg bg-white/10 text-xs hover:bg-white/15">👤</a>
                         <?php if ($usr['role'] !== 'owner'): ?>
                             <form method="post" action="/owner/users/<?= (int) $usr['id'] ?>/ban" onsubmit="return confirm('<?= $usr['status'] === 'banned' ? 'Aktifkan kembali' : 'Ban' ?> akun ini?')"><?= csrf_field() ?>
                                 <button class="px-3 py-1.5 rounded-lg text-xs <?= $usr['status'] === 'banned' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300' ?>"><?= $usr['status'] === 'banned' ? '✓ Unban' : '🔨 Ban' ?></button>

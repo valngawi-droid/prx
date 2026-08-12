@@ -18,7 +18,7 @@ final class Message
     public static function conversations(int $userId): array
     {
         return Database::all(
-            'SELECT u.id, u.name, u.username, u.role, u.badges,
+            'SELECT u.id, u.name, u.username, u.role, u.badges, u.last_activity,
                     (SELECT m.body FROM messages m
                       WHERE (m.sender_id = u.id AND m.recipient_id = :me1)
                          OR (m.sender_id = :me2 AND m.recipient_id = u.id)

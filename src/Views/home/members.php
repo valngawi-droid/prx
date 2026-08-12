@@ -23,7 +23,7 @@
                     </p>
                     <div class="mt-1 flex justify-center"><?= user_badges($m) ?></div>
                     <?php if (!empty($m['username'])): ?>
-                        <a href="/u/<?= e(rawurlencode((string) $m['username'])) ?>" class="mt-2 inline-block text-[11px] text-neon-cyan hover:underline">@<?= e((string) $m['username']) ?></a>
+                        <a href="/profil/@<?= e(rawurlencode((string) $m['username'])) ?>" class="mt-2 inline-block text-[11px] text-neon-cyan hover:underline">@<?= e((string) $m['username']) ?></a>
                     <?php endif; ?>
                     <p class="mt-1.5 text-[10px] text-slate-600">gabung <?= e(date('M Y', strtotime((string) $m['created_at']))) ?></p>
                 </div>
