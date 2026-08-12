@@ -102,18 +102,51 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
     </div>
 </div>
 
-<!-- Bottom nav mobile -->
-<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/90 backdrop-blur-xl border-t border-white/10 flex overflow-x-auto">
-    <?php foreach (array_slice($menus, 0, 5) as [$href, $icon, $label]): ?>
-        <a href="<?= e($href) ?>" class="flex-1 min-w-[4.5rem] py-2.5 flex flex-col items-center gap-0.5 text-[10px] <?= $path === $href ? 'text-neon-cyan' : 'text-slate-500' ?>">
-            <span class="text-base"><?= $icon ?></span><?= e($label) ?>
+<!-- Bottom nav mobile: 4 pintasan utama + tombol ☰ membuka SEMUA menu -->
+<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/90 backdrop-blur-xl border-t border-white/10 flex">
+    <?php
+    $firstFour = array_slice($menus, 0, 4);
+    $inFirstFour = in_array($path, array_column($firstFour, 0), true);
+    foreach ($firstFour as [$href, $icon, $label]): ?>
+        <a href="<?= e($href) ?>" class="flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] truncate <?= $path === $href ? 'text-neon-cyan' : 'text-slate-500' ?>">
+            <span class="text-base"><?= $icon ?></span><span class="truncate w-full text-center"><?= e($label) ?></span>
         </a>
     <?php endforeach; ?>
+    <button type="button" id="menuMoreBtn" class="flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] <?= !$inFirstFour ? 'text-neon-cyan' : 'text-slate-500' ?>">
+        <span class="text-base">☰</span>Menu
+    </button>
 </nav>
+
+<!-- Sheet SEMUA menu (mobile) — slide-up, tutup dengan ketuk area gelap -->
+<div id="menuSheet" class="lg:hidden fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/70" data-close-sheet></div>
+    <div class="absolute bottom-0 inset-x-0 rounded-t-3xl bg-slate-900 border-t border-violet-500/30 p-5 pb-8 max-h-[78vh] overflow-y-auto" style="animation:sheetUp .25s ease-out;">
+        <div class="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4"></div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-3">Semua Menu — <?= e($role) ?></p>
+        <div class="grid grid-cols-3 gap-2">
+            <?php foreach ($menus as [$href, $icon, $label]): ?>
+                <a href="<?= e($href) ?>" class="rounded-xl border px-2 py-3 text-center text-[11px] leading-tight <?= $path === $href ? 'bg-gradient-to-br from-violet-600/40 to-cyan-500/20 border-violet-400/40 text-white' : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08]' ?>">
+                    <span class="block text-lg mb-1"><?= $icon ?></span><?= e($label) ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+        <form method="post" action="/logout" class="mt-4"><?= csrf_field() ?>
+            <button class="w-full py-3 rounded-xl bg-red-500/10 border border-red-400/30 text-red-300 text-sm font-semibold">⏻ Keluar</button>
+        </form>
+    </div>
+</div>
+<style>@keyframes sheetUp{from{transform:translateY(48px);opacity:.4}to{transform:translateY(0);opacity:1}}</style>
 <div class="h-16 lg:hidden"></div>
 
 <script>
     setTimeout(() => document.querySelectorAll('.flash').forEach(el => { el.style.transition = 'opacity .5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }), 4500);
+    (() => {
+        const btn = document.getElementById('menuMoreBtn');
+        const sheet = document.getElementById('menuSheet');
+        if (!btn || !sheet) return;
+        btn.addEventListener('click', () => sheet.classList.remove('hidden'));
+        sheet.addEventListener('click', (e) => { if (e.target.hasAttribute('data-close-sheet')) sheet.classList.add('hidden'); });
+    })();
 </script>
 <script src="<?= asset('js/panel.js') ?>" defer></script>
 </body>
