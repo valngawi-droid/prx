@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace ChiperX\Controllers;
 
+use ChiperX\Core\Config;
 use ChiperX\Core\Database;
 use ChiperX\Core\Request;
+use ChiperX\Core\Response;
 use ChiperX\Models\Announcement;
 use ChiperX\Models\Changelog;
 use ChiperX\Models\Feedback;
@@ -57,6 +59,36 @@ final class HomeController extends Controller
             'title'      => 'Informasi ChiperX',
             'changelogs' => $changelogs,
         ]);
+    }
+
+    /** GET /robots.txt — SEO: arahkan crawler, sembunyikan area privat. */
+    public function robots(Request $req): Response
+    {
+        $base = Config::appUrl();
+        $body = "User-agent: *\n"
+            . "Allow: /\n"
+            . "Disallow: /zszdgj\n"
+            . "Disallow: /owner\n"
+            . "Disallow: /admin\n"
+            . "Disallow: /dashboard\n"
+            . "Disallow: /api/\n"
+            . "\nSitemap: {$base}/sitemap.xml\n";
+        return new Response($body, 200, 'text/plain; charset=utf-8');
+    }
+
+    /** GET /sitemap.xml — SEO: indeks halaman publik untuk Google/Bing. */
+    public function sitemap(Request $req): Response
+    {
+        $base = Config::appUrl();
+        $urls = ['/' => '1.0', '/info' => '0.8', '/links' => '0.7', '/store' => '0.8', '/redeem' => '0.6', '/games' => '0.6', '/login' => '0.5', '/register' => '0.5'];
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+            . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+        foreach ($urls as $path => $prio) {
+            $xml .= '  <url><loc>' . htmlspecialchars($base . $path, ENT_XML1) . '</loc>'
+                . '<changefreq>daily</changefreq><priority>' . $prio . '</priority></url>' . "\n";
+        }
+        $xml .= '</urlset>';
+        return new Response($xml, 200, 'application/xml; charset=utf-8');
     }
 
     public function links(Request $req): string

@@ -9,6 +9,7 @@ use ChiperX\Controllers\DownloadController;
 use ChiperX\Controllers\GameController;
 use ChiperX\Controllers\GateController;
 use ChiperX\Controllers\HomeController;
+use ChiperX\Controllers\NotificationController;
 use ChiperX\Controllers\OwnerController;
 use ChiperX\Controllers\ProfileController;
 use ChiperX\Controllers\RedeemController;
@@ -30,6 +31,8 @@ return static function (Router $r): void {
     $r->get('/info', [HomeController::class, 'info']);
     $r->get('/links', [HomeController::class, 'links']);
     $r->post('/feedback', [HomeController::class, 'sendFeedback']);
+    $r->get('/robots.txt', [HomeController::class, 'robots']);
+    $r->get('/sitemap.xml', [HomeController::class, 'sitemap']);
 
     // ---------------- AUTH v2 ----------------
     // LOGIN: Username & Password → magic link email (tanpa ketik OTP)
@@ -63,6 +66,10 @@ return static function (Router $r): void {
     $r->get('/profil', [ProfileController::class, 'show'], AuthMiddleware::class);
     $r->post('/profil', [ProfileController::class, 'update'], AuthMiddleware::class);
     $r->get('/u/{username}', [ProfileController::class, 'publicShow']);
+
+    // ---------------- NOTIFIKASI (lonceng 🔔) ----------------
+    $r->get('/notifikasi', [NotificationController::class, 'index'], AuthMiddleware::class);
+    $r->get('/api/notifikasi', [NotificationController::class, 'api'], AuthMiddleware::class);
 
     $r->post('/logout', [AuthController::class, 'logout'], AuthMiddleware::class);
 

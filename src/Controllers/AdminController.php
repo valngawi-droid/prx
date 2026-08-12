@@ -246,6 +246,13 @@ final class AdminController extends Controller
         $message = $req->str('message', '', 2000);
         if ($ticket && mb_strlen($message) >= 2) {
             Ticket::reply((int) $ticket['id'], (int) auth_user()['id'], $message, byStaff: true);
+            \ChiperX\Models\Notification::add(
+                (int) $ticket['user_id'],
+                '💬 Tiketmu dibalas: ' . (string) $ticket['subject'],
+                mb_substr($message, 0, 140),
+                '/dashboard',
+                'success'
+            );
             flash('success', 'Balasan terkirim ke pengguna.');
         }
         return redirect('/admin/tickets?open=' . (int) $params['id']);

@@ -30,6 +30,29 @@
                     <div><label class="text-xs text-slate-400">Aksen Hijau</label>
                         <input type="color" name="theme_green" value="<?= e($settings['theme_green'] ?? '#4ade80') ?>" class="w-full h-10 rounded-lg bg-transparent cursor-pointer"></div>
                 </div>
+                <div class="mt-4">
+                    <p class="text-xs text-slate-400 mb-2">⚡ Preset instan — ketuk kartu lalu tekan <b>Simpan</b>:</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                        <?php foreach ([
+                            'Ungu Nebula'  => ['#a78bfa', '#22d3ee', '#4ade80'],
+                            'Samudra Cyan' => ['#22d3ee', '#818cf8', '#34d399'],
+                            'Matrix Hijau' => ['#4ade80', '#22d3ee', '#a3e635'],
+                            'Magma Merah'  => ['#f87171', '#fb923c', '#facc15'],
+                            'Royal Emas'   => ['#fbbf24', '#f472b6', '#4ade80'],
+                            'Sakura Pink'  => ['#f472b6', '#c084fc', '#fda4af'],
+                        ] as $pname => [$pp, $pc, $pg]): ?>
+                            <button type="button" onclick="applyThemePreset('<?= $pp ?>', '<?= $pc ?>', '<?= $pg ?>', this)"
+                                    class="rounded-xl border border-white/10 p-2.5 text-[10px] font-bold text-white text-center hover:scale-[1.05] hover:border-white/30 transition"
+                                    style="background:linear-gradient(135deg,<?= $pp ?>2e,<?= $pc ?>2e);">
+                                <span class="flex justify-center gap-1 mb-1.5">
+                                    <i class="w-3.5 h-3.5 rounded-full inline-block" style="background:<?= $pp ?>"></i>
+                                    <i class="w-3.5 h-3.5 rounded-full inline-block" style="background:<?= $pc ?>"></i>
+                                    <i class="w-3.5 h-3.5 rounded-full inline-block" style="background:<?= $pg ?>"></i>
+                                </span><?= e($pname) ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
                 <div class="mt-3"><label class="text-xs text-slate-400">Deskripsi hero beranda</label>
                     <input name="hero_desc" value="<?= e($settings['hero_desc'] ?? '') ?>" maxlength="300" placeholder="Kosongkan untuk teks bawaan" class="form-input w-full text-sm mt-1"></div>
             </div>
@@ -80,6 +103,16 @@
 </form>
 
 <script>
+    // Preset tema 1-klik: isi 3 color picker lalu user menekan Simpan
+    function applyThemePreset(p, c, g, btn) {
+        const set = (n, v) => {
+            const el = document.querySelector('[name="' + n + '"]');
+            if (el) { el.value = v; el.classList.add('ring-2', 'ring-cyan-400'); setTimeout(() => el.classList.remove('ring-2', 'ring-cyan-400'), 900); }
+        };
+        set('theme_purple', p); set('theme_cyan', c); set('theme_green', g);
+        document.querySelectorAll('[onclick^="applyThemePreset"]').forEach(b => b.classList.remove('border-neon-cyan'));
+        btn.classList.add('border-neon-cyan');
+    }
     // Penghitung total RTP real-time per game
     document.querySelectorAll('[data-rtp]').forEach(inp => inp.addEventListener('input', recalc));
     function recalc() {

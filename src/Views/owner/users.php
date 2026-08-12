@@ -19,7 +19,7 @@
 <div class="glass-card mt-6 overflow-x-auto">
     <table class="w-full text-sm">
         <thead><tr class="text-left text-xs text-slate-500 border-b border-white/10">
-            <th class="p-4">Akun</th><th class="p-4">Role</th><th class="p-4">Koin</th><th class="p-4">Status</th><th class="p-4">Login</th><th class="p-4 text-right">Aksi</th>
+            <th class="p-4">Akun</th><th class="p-4">Role</th><th class="p-4">Koin</th><th class="p-4">Status</th><th class="p-4">Tags</th><th class="p-4">Login</th><th class="p-4 text-right">Aksi</th>
         </tr></thead>
         <tbody>
         <?php foreach ($users as $usr): ?>
@@ -30,6 +30,33 @@
                     <?= strtoupper(e($usr['role'])) ?></span></td>
                 <td class="p-4 text-amber-300">🪙 <?= e(number_format((int) $usr['coin_balance'])) ?></td>
                 <td class="p-4"><?= $usr['status'] === 'active' ? '<span class="text-emerald-300 text-xs font-bold">● AKTIF</span>' : '<span class="text-red-400 text-xs font-bold">● BANNED</span>' ?></td>
+                <td class="p-4 min-w-[150px] max-w-[240px]">
+                    <?php
+                    $tags = array_values(array_filter(array_map('trim', explode(',', (string) ($usr['badges'] ?? '')))));
+                    ?>
+                    <div class="flex flex-wrap gap-1 items-center">
+                        <?php foreach ($tags as $tag):
+                            $minus = implode(',', array_values(array_filter($tags, static fn($t) => $t !== $tag)));
+                        ?>
+                            <form method="post" action="/owner/users/<?= (int) $usr['id'] ?>/badges" class="inline" title="Ketuk untuk menghapus tag «<?= e($tag) ?>»">
+                                <?= csrf_field() ?><input type="hidden" name="badges" value="<?= e($minus) ?>">
+                                <button class="px-2 py-0.5 rounded-full text-[10px] font-semibold border border-violet-400/40 bg-violet-500/10 text-violet-200 hover:bg-red-500/20 hover:border-red-400/50 hover:text-red-200 transition"><?= e($tag) ?> <span class="opacity-60">×</span></button>
+                            </form>
+                        <?php endforeach; ?>
+                        <?php if (count($tags) < 5): ?>
+                            <?php foreach (['💎 VIP', '🛍️ Seller', '⭐ Premium', '🧪 Tester'] as $preset):
+                                if (in_array($preset, $tags, true)) { continue; }
+                                $plus = implode(',', [...$tags, $preset]);
+                            ?>
+                                <form method="post" action="/owner/users/<?= (int) $usr['id'] ?>/badges" class="inline" title="Tambah tag <?= e($preset) ?>">
+                                    <?= csrf_field() ?><input type="hidden" name="badges" value="<?= e($plus) ?>">
+                                    <button class="px-1.5 py-0.5 rounded-full text-[10px] border border-dashed border-white/20 text-slate-500 hover:border-neon-cyan hover:text-neon-cyan transition">+<?= e($preset) ?></button>
+                                </form>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if ($tags === []): ?><span class="text-[10px] text-slate-600">— tanpa tags —</span><?php endif; ?>
+                    </div>
+                </td>
                 <td class="p-4 text-xs text-slate-500"><?= e($usr['last_login'] ? waktu_lalu($usr['last_login']) : '-') ?></td>
                 <td class="p-4">
                     <div class="flex justify-end items-center gap-2 flex-wrap">

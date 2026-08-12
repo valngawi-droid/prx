@@ -241,6 +241,13 @@ final class OwnerController extends Controller
             ['name' => 'Pengguna', 'value' => $target['email'], 'inline' => true],
             ['name' => 'Oleh', 'value' => auth_user()['email'] ?? '-', 'inline' => true],
         ]);
+        \ChiperX\Models\Notification::add(
+            (int) $target['id'],
+            $now ? '✅ Kamu mendapat Centang Biru!' : '▫️ Centang biru dicabut',
+            $now ? 'Selamat — akunmu kini berstatus terverifikasi resmi ChiperX.' : 'Silakan hubungi owner bila ada pertanyaan.',
+            '/profil',
+            $now ? 'success' : 'warning'
+        );
         flash('success', ($now ? '✓ Centang biru diberikan kepada ' : 'Centang biru dicabut dari ') . $target['email']);
         return redirect('/owner/users');
     }
@@ -256,6 +263,14 @@ final class OwnerController extends Controller
         }
         User::setBadges((int) $target['id'], $req->str('badges', '', 190));
         AuditLogger::record('owner.badges_update', ['target' => $target['email'], 'badges' => $req->str('badges', '', 190)], 'critical', (int) auth_user()['id'], $req->ip());
+        $newCsv = trim((string) $req->str('badges', '', 190));
+        \ChiperX\Models\Notification::add(
+            (int) $target['id'],
+            '🏷️ Tags profilmu diperbarui',
+            $newCsv !== '' ? 'Tag barumu: ' . $newCsv : 'Semua tag kustom dihapus.',
+            '/profil',
+            'info'
+        );
         flash('success', 'Tags ' . $target['email'] . ' diperbarui.');
         return redirect('/owner/users');
     }

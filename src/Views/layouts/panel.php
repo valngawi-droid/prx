@@ -39,6 +39,8 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= e(\ChiperX\Core\Csrf::token()) ?>">
+    <link rel="icon" type="image/png" href="/assets/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.webmanifest">
     <title><?= e($title ?? 'Panel') ?> — ChiperX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { ink: '#0f172a', neon: { purple: '#a78bfa', cyan: '#22d3ee' } }, fontFamily: { display: ['Space Grotesk', 'sans-serif'] } } } };</script>
@@ -86,7 +88,14 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
     <div class="flex-1 min-w-0">
         <header class="lg:hidden flex items-center justify-between p-4 border-b border-white/10 bg-slate-900/60 backdrop-blur-xl sticky top-0 z-30">
             <span class="font-display font-bold text-white">CHIPER<span class="text-neon-cyan">X</span></span>
-            <a href="/" class="text-xs text-slate-400">← Situs</a>
+            <div class="flex items-center gap-4">
+                <?php $bellCount = \ChiperX\Models\Notification::unreadCount((int) $u['id']); ?>
+                <a href="/notifikasi" title="Notifikasi" class="relative text-slate-300 text-base leading-none">
+                    🔔
+                    <span class="bell-badge <?= $bellCount > 0 ? '' : 'hidden' ?> absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center"><?= $bellCount > 99 ? '99+' : $bellCount ?></span>
+                </a>
+                <a href="/" class="text-xs text-slate-400">← Situs</a>
+            </div>
         </header>
         <div class="p-5 sm:p-8 max-w-6xl mx-auto w-full">
             <div class="space-y-2 mb-6">
@@ -146,6 +155,20 @@ if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
         if (!btn || !sheet) return;
         btn.addEventListener('click', () => sheet.classList.remove('hidden'));
         sheet.addEventListener('click', (e) => { if (e.target.hasAttribute('data-close-sheet')) sheet.classList.add('hidden'); });
+    })();
+    // 🔔 Polling badge notifikasi tiap 25 detik
+    (() => {
+        const badge = document.querySelector('.bell-badge');
+        if (!badge) return;
+        const tick = () => fetch('/api/notifikasi')
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                if (!d) return;
+                if (d.count > 0) { badge.textContent = d.count > 99 ? '99+' : d.count; badge.classList.remove('hidden'); }
+                else { badge.classList.add('hidden'); }
+            })
+            .catch(() => {});
+        setInterval(tick, 25000);
     })();
 </script>
 <script src="<?= asset('js/panel.js') ?>" defer></script>

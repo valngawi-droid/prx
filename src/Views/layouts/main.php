@@ -6,7 +6,24 @@
     <script>document.documentElement.classList.add('js');</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= e(\ChiperX\Core\Csrf::token()) ?>">
-    <meta name="description" content="ChiperX — Platform komunitas digital: mini games, redeem center & store premium.">
+    <?php
+    $siteDesc  = (string) \ChiperX\Models\Setting::get('hero_desc', 'ChiperX — platform komunitas digital: mini games, redeem center & store premium.');
+    $canonical = \ChiperX\Core\Config::appUrl() . (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+    ?>
+    <meta name="description" content="<?= e($siteDesc) ?>">
+    <link rel="canonical" href="<?= e($canonical) ?>">
+    <!-- Open Graph — preview cakep saat link dishare ke WA/Discord/Telegram -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ChiperX">
+    <meta property="og:title" content="<?= e(($title ?? 'ChiperX') . ' — ChiperX') ?>">
+    <meta property="og:description" content="<?= e($siteDesc) ?>">
+    <meta property="og:url" content="<?= e($canonical) ?>">
+    <meta property="og:image" content="<?= e(\ChiperX\Core\Config::appUrl() . '/assets/icons/icon-512.png') ?>">
+    <meta name="twitter:card" content="summary">
+    <!-- PWA + ikon -->
+    <link rel="icon" type="image/png" href="/assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.webmanifest">
     <title><?= e($title ?? 'ChiperX') ?> — ChiperX</title>
     <!-- Optimasi mobile & desktop -->
     <meta name="theme-color" content="#0f172a">
@@ -55,10 +72,14 @@
             <a href="/games" class="hover:text-neon-purple transition">🎮 Mini Games</a>
         </div>
         <div class="flex items-center gap-3">
-            <?php if (is_logged_in()): $u = auth_user(); ?>
+            <?php if (is_logged_in()): $u = auth_user(); $bellCount = \ChiperX\Models\Notification::unreadCount((int) $u['id']); ?>
                 <span class="hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
                     🪙 <b class="text-amber-300"><?= e(number_format((int) $u['coin_balance'])) ?></b>
                 </span>
+                <a href="/notifikasi" title="Notifikasi" class="relative text-slate-300 hover:text-neon-cyan transition text-base leading-none">
+                    🔔
+                    <span class="bell-badge <?= $bellCount > 0 ? '' : 'hidden' ?> absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold grid place-items-center shadow-[0_0_10px_rgba(239,68,68,.7)]"><?= $bellCount > 99 ? '99+' : $bellCount ?></span>
+                </a>
                 <a href="/profil" title="Profil saya" class="text-slate-300 hover:text-neon-cyan transition text-sm">👤</a>
                 <a href="<?= $u['role'] === 'owner' ? '/owner' : ($u['role'] === 'admin' ? '/admin' : '/dashboard') ?>"
                    class="text-sm px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-violet-600/30">Dashboard</a>
@@ -112,9 +133,31 @@
     // Navbar mobile + auto-dismiss flash
     document.getElementById('navToggle')?.addEventListener('click', () => document.getElementById('navMobile').classList.toggle('hidden'));
     setTimeout(() => document.querySelectorAll('.flash').forEach(el => { el.style.transition = 'opacity .5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }), 4500);
+    <?php if (is_logged_in()): ?>
+    // 🔔 Polling badge notifikasi tiap 25 detik (ringan: hanya angka)
+    (() => {
+        const badge = document.querySelector('.bell-badge');
+        if (!badge) return;
+        const tick = () => fetch('/api/notifikasi', { headers: { 'X-Requested-With': 'fetch' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                if (!d) return;
+                if (d.count > 0) { badge.textContent = d.count > 99 ? '99+' : d.count; badge.classList.remove('hidden'); }
+                else { badge.classList.add('hidden'); }
+            })
+            .catch(() => {});
+        setInterval(tick, 25000);
+    })();
+    <?php endif; ?>
 </script>
 <!-- Animasi reveal [data-anim] — landing.js punya fallback non-GSAP, dan tanpa JS pun konten tetap tampil (CSS: html.js gate) -->
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
 <script src="<?= asset('js/landing.js') ?>" defer></script>
+<script>
+    // PWA — daftarkan service worker (aktif di https/localhost)
+    if ('serviceWorker' in navigator) {
+        addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+    }
+</script>
 </body>
 </html>

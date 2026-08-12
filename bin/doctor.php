@@ -158,7 +158,7 @@ if ($dbOk) {
         'users', 'otp_codes', 'links', 'products', 'transactions', 'logs',
         'game_history', 'settings', 'changelogs', 'announcements', 'tickets',
         'ticket_replies', 'feedback', 'weekly_rewards', 'achievements',
-        'user_achievements', 'api_tokens', 'login_tokens',
+        'user_achievements', 'api_tokens', 'login_tokens', 'notifications',
     ];
     $ada = $pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
     $kurang = array_diff($wajibTabel, $ada);
