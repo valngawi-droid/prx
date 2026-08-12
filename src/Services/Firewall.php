@@ -193,8 +193,38 @@ final class Firewall
                 Database::run('DELETE FROM threat_log WHERE created_at < NOW() - INTERVAL 7 DAY');
                 Database::run("DELETE FROM fw_rate WHERE bucket <> ?", [$bucket]);
             }
+
+            // 4) 🤖 AI Sentinel: laporan keamanan harian ke Discord (1x/hari, jam 06:00+)
+            self::dailyReportIfDue();
         } catch (\Throwable) {
             // DB sibuk/mati → jangan ganggu situs (fail-open)
+        }
+    }
+
+    /** Kirim ringkasan keamanan 24 jam ke Discord — sekali sehari (setelah 06:00 WIB). */
+    public static function dailyReportIfDue(): void
+    {
+        try {
+            $last = (string) (\ChiperX\Models\Setting::get('fw_last_report') ?? '');
+            $now  = date('H') >= 6 ? date('Y-m-d') : date('Y-m-d', strtotime('-1 day'));
+            if ($last === $now) {
+                return; // sudah dilaporkan hari ini
+            }
+            \ChiperX\Models\Setting::set('fw_last_report', $now);
+            $s = self::stats();
+            $top = Database::all(
+                "SELECT ip, COUNT(*) AS n, MAX(level) AS lvl FROM threat_log
+                 WHERE created_at > NOW() - INTERVAL 1 DAY
+                 GROUP BY ip ORDER BY n DESC LIMIT 3"
+            );
+            $topTxt = $top ? implode("\n", array_map(static fn($r) => "• `{$r['ip']}` — {$r['n']}x percobaan", $top)) : 'Tidak ada — situs aman 🕊️';
+            DiscordWebhook::send('🤖 AI Sentinel — Laporan Keamanan Harian', 'Ringkasan 24 jam terakhir:', DiscordWebhook::COLOR_CYAN, [
+                ['name' => '🚨 Ancaman 24 jam', 'value' => (string) $s['threats24h'], 'inline' => true],
+                ['name' => '💀 Kritis', 'value' => (string) $s['critical24h'], 'inline' => true],
+                ['name' => '⛔ Ban aktif / permanen', 'value' => $s['active'] . ' / ' . $s['permanent'], 'inline' => true],
+                ['name' => '🎯 IP paling agresif', 'value' => $topTxt],
+            ]);
+        } catch (\Throwable) {
         }
     }
 

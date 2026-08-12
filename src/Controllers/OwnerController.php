@@ -219,6 +219,113 @@ final class OwnerController extends Controller
         return redirect('/owner/firewall');
     }
 
+    // =================== 🤖 AI SENTINEL (petugas keamanan 24/7) ===================
+
+    public function sentinel(Request $req): string
+    {
+        $stats   = ['active' => 0, 'permanent' => 0, 'threats24h' => 0, 'critical24h' => 0];
+        $threats = [];
+        try {
+            $stats   = \ChiperX\Services\Firewall::stats();
+            $threats = \ChiperX\Services\Firewall::threats(15);
+        } catch (\Throwable) {
+        }
+        return $this->panel('owner/sentinel', [
+            'title'    => '🤖 AI Sentinel',
+            'stats'    => $stats,
+            'threats'  => $threats,
+            'aiAnswer' => null,
+        ]);
+    }
+
+    /** POST /owner/sentinel/analyze — kirim ringkasan ancaman ke Chat AI untuk dianalisis. */
+    public function sentinelAnalyze(Request $req): Response|string
+    {
+        $this->guardCsrf();
+        $stats   = ['active' => 0, 'permanent' => 0, 'threats24h' => 0, 'critical24h' => 0];
+        $threats = [];
+        try {
+            $stats   = \ChiperX\Services\Firewall::stats();
+            $threats = \ChiperX\Services\Firewall::threats(15);
+        } catch (\Throwable) {
+        }
+
+        // Susun ringkasan untuk AI
+        $ringkas = "STATISTIK 24 JAM: ancaman={$stats['threats24h']}, kritis={$stats['critical24h']}, ban-aktif={$stats['active']}, ban-permanen={$stats['permanent']}.\n";
+        $ringkas .= "ANCAMAN TERAKHIR:\n";
+        foreach (array_slice($threats, 0, 12) as $t) {
+            $ringkas .= "- [{$t['level']}] {$t['ip']} → {$t['pattern']} ({$t['uri']})\n";
+        }
+        $prompt = "Kamu adalah analis keamanan siber senior yang menjaga situs komunitas PHP (ChiperX). "
+            . "Berikut data firewall 24 jam terakhir:\n{$ringkas}\n"
+            . "Tugasmu (Bahasa Indonesia, ringkas poin-poin): 1) nilai tingkat risiko (rendah/sedang/tinggi), "
+            . "2) jenis serangan yang sedang dicoba, 3) 5 langkah konkret yang harus dilakukan owner, "
+            . "4) IP yang paling berbahaya jika ada. Maks 200 kata.";
+
+        $answer = null;
+        try {
+            $res = \ChiperX\Services\CodexApi::call('/api/ai/chatai', [
+                'teks' => $prompt, 'model' => 'claude', 'session' => 'sentinel-owner', 'stream' => 'false',
+            ], 'POST', 40);
+            if ($res['ok'] && is_array($res['data'])) {
+                $answer = $this->pluckText($res['data']);
+            } else {
+                flash('warning', 'AI sedang sibuk (' . ($res['error'] ?? 'HTTP ' . $res['status']) . ') — coba lagi sebentar.');
+            }
+        } catch (\Throwable) {
+            flash('error', 'Tidak bisa menghubungi layanan AI.');
+        }
+        if ($answer !== null) {
+            AuditLogger::record('owner.sentinel_analyze', [], 'info', (int) auth_user()['id'], $req->ip());
+        }
+        return $this->panel('owner/sentinel', [
+            'title'    => '🤖 AI Sentinel',
+            'stats'    => $stats,
+            'threats'  => $threats,
+            'aiAnswer' => $answer,
+        ]);
+    }
+
+    /** Tarik teks jawaban dari berbagai bentuk respons API AI. */
+    private function pluckText(array $data, int $depth = 0): ?string
+    {
+        if ($depth > 5) {
+            return null;
+        }
+        foreach (['result', 'answer', 'response', 'message', 'text', 'data', 'output', 'content'] as $k) {
+            if (!isset($data[$k])) {
+                continue;
+            }
+            if (is_string($data[$k]) && strlen(trim($data[$k])) > 10) {
+                return trim($data[$k]);
+            }
+            if (is_array($data[$k])) {
+                $r = $this->pluckText($data[$k], $depth + 1);
+                if ($r !== null) {
+                    return $r;
+                }
+            }
+        }
+        return null;
+    }
+
+    // =================== 🩺 CEK SEMUA API (30 endpoint) ===================
+
+    public function apiHealth(Request $req): string
+    {
+        @set_time_limit(280);
+        $rows = [];
+        foreach (array_keys(\ChiperX\Services\CodexApi::tools()) as $key) {
+            $rows[$key] = \ChiperX\Services\CodexApi::test($key);
+        }
+        AuditLogger::record('owner.api_health', ['n' => count($rows)], 'info', (int) auth_user()['id'], $req->ip());
+        return $this->panel('owner/api_health', [
+            'title' => '🩺 Kesehatan 30 API',
+            'tools' => \ChiperX\Services\CodexApi::tools(),
+            'rows'  => $rows,
+        ]);
+    }
+
     // =================== USER & ADMIN MANAGEMENT ===================
 
     public function users(Request $req): string
@@ -300,6 +407,7 @@ final class OwnerController extends Controller
         'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME',
         'KIRIMEMAIL_API_KEY', 'KIRIMEMAIL_API_SECRET', 'KIRIMEMAIL_DOMAIN',
         'DISCORD_WEBHOOK_URL', 'DISCORD_ENABLED',
+        'CODEX_API_KEY',
         'PAYMENT_DRIVER',
         'PAKASIR_SLUG', 'PAKASIR_API_KEY',
         'DUITKU_SANDBOX', 'DUITKU_MERCHANT_CODE', 'DUITKU_API_KEY',

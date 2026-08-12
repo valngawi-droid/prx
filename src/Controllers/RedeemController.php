@@ -19,10 +19,16 @@ final class RedeemController extends Controller
 {
     public function index(Request $req): string
     {
+        $products = [];
+        try {
+            $products = Product::forRedeem();
+        } catch (\Throwable) {
+            flash('warning', 'Katalog sedang disegarkan — coba sebentar lagi ya. 🙏');
+        }
         return $this->view('redeem/index', [
             'title'    => 'Redeem Center',
             'user'     => auth_user(),
-            'products' => Product::forRedeem(),
+            'products' => $products,
         ]);
     }
 
@@ -36,7 +42,10 @@ final class RedeemController extends Controller
             AuditLogger::record('redeem_code.claim', ['code' => strtoupper(trim($req->str('code', '', 40))), 'coins' => $res['coins']], 'info', (int) $user['id'], $req->ip());
             \ChiperX\Models\Notification::add((int) $user['id'], '🎟️ Kode Redeem + ' . $res['coins'] . ' koin', 'Kode berhasil diklaim.', '/redeem', 'success');
         }
-        flash($res['ok'] ? 'success' : 'error', $res['message']);
+        // Pesan "sudah pernah diklaim" = info ramah (kuning), bukan error merah
+        $type = $res['ok'] ? 'success'
+            : (preg_match('~sudah|pernah~i', (string) $res['message']) ? 'warning' : 'error');
+        flash($type, $res['message']);
         return redirect('/redeem');
     }
 

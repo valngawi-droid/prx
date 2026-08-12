@@ -62,6 +62,7 @@ addEventListener('load', () => {
     <?php
     $shortcuts = [
         ['/owner/firewall', '🧯', 'Firewall', 'Anti-deface: ban IP otomatis/manual + jurnal ancaman'],
+        ['/owner/sentinel', '🤖', 'AI Sentinel', 'Penjaga keamanan AI 24/7 + analisis ancaman + cek 30 API'],
         ['/owner/filemanager', '🗂️', 'File Manager', 'Edit source code langsung dari browser (Monaco Editor)'],
         ['/owner/users', '🛡️', 'Kelola Akun', 'Add / edit / ban / delete admin & user'],
         ['/owner/settings', '⚙️', 'RTP & Setting', 'Atur win-rate RNG semua mini games'],

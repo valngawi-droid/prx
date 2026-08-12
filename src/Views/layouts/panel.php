@@ -7,6 +7,7 @@ $menuUser = [
     ['/dashboard', '◈', 'Dashboard'],
     ['/komunitas', '💬', 'Komunitas'],
     ['/pesan', '✉️', 'Pesan'],
+    ['/tools', '🚀', 'Tools AI'],
     ['/games', '🎮', 'Mini Games'],
     ['/redeem', '🎁', 'Redeem Center'],
     ['/store', '🛒', 'Store'],
@@ -26,6 +27,7 @@ $menuOwner = [
     ['/owner', '👑', 'Owner Control'],
     ['/owner/users', '🛡️', 'Admin & User'],
     ['/owner/firewall', '🧯', 'Firewall'],
+    ['/owner/sentinel', '🤖', 'AI Sentinel'],
     ['/owner/filemanager', '🗂️', 'File Manager'],
     ['/owner/links', '🔗', 'Atur Link'],
     ['/owner/settings', '⚙️', 'Setting & RTP'],
@@ -57,7 +59,7 @@ $quickNav = match ($role) {
     default => [
         ['/dashboard', '◈', 'Dasbor'],
         ['/komunitas', '💬', 'Komunitas'],
-        ['/store', '🛒', 'Store'],
+        ['/tools', '🚀', 'Tools'],
         ['/pesan', '✉️', 'Pesan'],
     ],
 };

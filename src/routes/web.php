@@ -16,6 +16,7 @@ use ChiperX\Controllers\ProfileController;
 use ChiperX\Controllers\SocialController;
 use ChiperX\Controllers\RedeemController;
 use ChiperX\Controllers\StoreController;
+use ChiperX\Controllers\ToolsController;
 use ChiperX\Controllers\WebhookController;
 use ChiperX\Core\Router;
 use ChiperX\Middleware\AdminMiddleware;
@@ -121,6 +122,11 @@ return static function (Router $r): void {
     $r->get('/games', [GameController::class, 'index'], AuthMiddleware::class);
     $r->post('/games/play', [GameController::class, 'play'], AuthMiddleware::class);
 
+    // ---------------- TOOLS 30+ AI & DOWNLOADER (v2.5) ----------------
+    $r->get('/tools', [ToolsController::class, 'index'], AuthMiddleware::class);
+    $r->get('/tools/{key}', [ToolsController::class, 'show'], AuthMiddleware::class);
+    $r->post('/tools/{key}', [ToolsController::class, 'run'], AuthMiddleware::class);
+
     $r->get('/redeem', [RedeemController::class, 'index'], AuthMiddleware::class);
     $r->post('/redeem-code', [RedeemController::class, 'claimCode'], AuthMiddleware::class);
     $r->post('/redeem/{id}', [RedeemController::class, 'redeem'], AuthMiddleware::class);
@@ -186,6 +192,11 @@ return static function (Router $r): void {
     $r->get('/owner/firewall', [OwnerController::class, 'firewall'], OwnerMiddleware::class);
     $r->post('/owner/firewall/ban', [OwnerController::class, 'firewallBan'], OwnerMiddleware::class);
     $r->post('/owner/firewall/unban', [OwnerController::class, 'firewallUnban'], OwnerMiddleware::class);
+
+    // 🤖 AI Sentinel + 🩺 cek kesehatan 30 API
+    $r->get('/owner/sentinel', [OwnerController::class, 'sentinel'], OwnerMiddleware::class);
+    $r->post('/owner/sentinel/analyze', [OwnerController::class, 'sentinelAnalyze'], OwnerMiddleware::class);
+    $r->get('/owner/api-health', [OwnerController::class, 'apiHealth'], OwnerMiddleware::class);
 
     $r->get('/owner/users', [OwnerController::class, 'users'], OwnerMiddleware::class);
     $r->get('/owner/integrations', [OwnerController::class, 'integrations'], OwnerMiddleware::class);
