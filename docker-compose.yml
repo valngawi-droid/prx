@@ -1,0 +1,62 @@
+# ============================================================
+# ChiperX — Full Stack (PHP-FPM 8.2 + Nginx + MySQL 8)
+# Jalankan:  docker compose up -d --build
+# Akses:     http://localhost:8080
+# ============================================================
+services:
+  app:
+    build: ./docker/php
+    container_name: chiperx_app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db           # override: pakai hostname service docker
+      DB_PORT: "3306"
+    volumes:
+      - app_storage:/var/www/html/storage   # uploads & backups persisten
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [chiperx_net]
+
+  web:
+    image: nginx:1.25-alpine
+    container_name: chiperx_web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html:ro                                    # kode + aset statis
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [app]
+    networks: [chiperx_net]
+
+  db:
+    image: mysql:8.0
+    container_name: chiperx_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: chiperx
+      MYSQL_USER: chiperx_user
+      MYSQL_PASSWORD: chiperx_pass
+      TZ: Asia/Jakarta
+    ports:
+      - "3306:3306"
+    volumes:
+      - chiperx_mysql:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot_secret"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [chiperx_net]
+
+networks:
+  chiperx_net:
+
+volumes:
+  chiperx_mysql:
+  app_storage:

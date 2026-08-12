@@ -1,0 +1,31 @@
+{
+    "name": "chiperx/chiperx-web",
+    "description": "ChiperX - Platform komunitas, mini games, redeem center & digital store (Enterprise PHP 8.2 MVC)",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2",
+        "phpmailer/phpmailer": "^6.9",
+        "ext-pdo": "*",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "ChiperX\\": "src/"
+        },
+        "files": [
+            "src/Core/helpers.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "scripts": {
+        "serve": "php -S 0.0.0.0:8000 -t public public/index.php",
+        "test": "php tests/run.php",
+        "doctor": "php bin/doctor.php"
+    }
+}
