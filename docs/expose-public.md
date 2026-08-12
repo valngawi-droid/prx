@@ -79,7 +79,7 @@ Biarkan jendela Termux terbuka; jangan swipe-close aplikasinya.
 | Gejala | Obat |
 |---|---|
 | `cloudflared: command not found` | `pkg install cloudflared -y` |
-| `cloudflared update` otomatis error di Termux | Sudah ditangani — skrip memakai `--no-autoupdate` |
+| `cloudflared update` otomatis error di Termux | Sudah ditangani — skrip mengekspor `NO_AUTOUPDATE=true` |
 | Tunnel terputus saat HP tidur | `termux-wake-lock` + jangan bersihkan Termux dari recent apps |
 | `route dns` gagal | Berarti `cert.pem` belum ada → ulangi langkah 2 (`tunnel login`) |
 | Subdomain lain | Ulangi langkah 3–4 dengan hostname berbeda (boleh banyak ingress) |

@@ -39,21 +39,24 @@ fi
 # ── 3. Cloudflare Tunnel ──
 command -v cloudflared >/dev/null 2>&1 || { echo "❌ cloudflared belum terinstal: pkg install cloudflared -y"; exit 1; }
 CF_DIR="$HOME/.cloudflared"
+# Matikan auto-update via ENV (posisi flag --no-autoupdate berbeda-beda antar
+# versi cloudflared — di sebagian versi flag itu milik 'tunnel', bukan 'run')
+export NO_AUTOUPDATE=true
 
 if [ "${1:-}" = "--quick" ]; then
     echo "🚇 Mode QUICK tunnel — URL acak trycloudflare.com (bukan domain sendiri)..."
-    exec cloudflared tunnel --no-autoupdate --url http://localhost:8009
+    exec cloudflared tunnel --url http://localhost:8009
 fi
 
 if [ -n "${TUNNEL_TOKEN:-}" ]; then
     echo "🚇 Cloudflare Tunnel (mode token): menghubungkan..."
-    exec cloudflared tunnel run --no-autoupdate --token "${TUNNEL_TOKEN}"
+    exec cloudflared tunnel run --token "${TUNNEL_TOKEN}"
 fi
 
 if [ -f "$CF_DIR/config.yml" ]; then
     TUNNEL_NAME="${1:-chiperx}"
     echo "🚇 Cloudflare Tunnel '${TUNNEL_NAME}' (subdomain sendiri): menghubungkan..."
-    exec cloudflared tunnel run --no-autoupdate "${TUNNEL_NAME}"
+    exec cloudflared tunnel run "${TUNNEL_NAME}"
 fi
 
 # ── Belum setup: panduan CLI murni (GRATIS, tanpa Zero Trust dashboard) ──
