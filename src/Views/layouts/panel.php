@@ -40,30 +40,6 @@ $menus = $menuUser;
 if ($role === 'admin') { $menus = $menuAdmin; }
 if ($role === 'owner') { $menus = array_merge($menuOwner, $menuAdmin); }
 
-// ---- Bottom nav: PINTASAN BERBEDA per peran ----
-// User  → fitur member (dasbor, komunitas, store)
-// Admin → alat kerja admin; Owner → kontrol owner + admin + pesan
-$quickNav = match ($role) {
-    'owner' => [
-        ['/owner', '👑', 'Owner'],
-        ['/admin', '📊', 'Admin'],
-        ['/komunitas', '💬', 'Komunitas'],
-        ['/pesan', '✉️', 'Pesan'],
-    ],
-    'admin' => [
-        ['/admin', '📊', 'Ringkasan'],
-        ['/admin/products', '📦', 'Produk'],
-        ['/komunitas', '💬', 'Komunitas'],
-        ['/pesan', '✉️', 'Pesan'],
-    ],
-    default => [
-        ['/dashboard', '◈', 'Dasbor'],
-        ['/komunitas', '💬', 'Komunitas'],
-        ['/tools', '🚀', 'Tools'],
-        ['/pesan', '✉️', 'Pesan'],
-    ],
-};
-
 // Badge pesan belum dibaca (aman bila tabel belum dimigrasi)
 $dmUnread = 0;
 try { $dmUnread = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch (\Throwable) {}
@@ -168,23 +144,8 @@ try { $dmUnread = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch 
     </div>
 </div>
 
-<!-- Bottom nav mobile: pintasan SESUAI PERAN (owner/admin/user BEDA) + ☰ semua menu -->
-<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/90 backdrop-blur-xl border-t border-white/10 flex" style="padding-bottom:env(safe-area-inset-bottom);">
-    <?php
-    $inQuick = in_array($path, array_column($quickNav, 0), true);
-    foreach ($quickNav as [$href, $icon, $label]): ?>
-        <a href="<?= e($href) ?>" class="relative flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] truncate <?= $path === $href ? 'text-neon-cyan' : 'text-slate-500' ?>">
-            <span class="text-base relative"><?= $icon ?>
-                <?php if ($href === '/pesan' && $dmUnread > 0): ?>
-                    <span class="absolute -top-1 -right-2 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[8px] font-bold grid place-items-center"><?= $dmUnread > 99 ? '99+' : $dmUnread ?></span>
-                <?php endif; ?>
-            </span><span class="truncate w-full text-center"><?= e($label) ?></span>
-        </a>
-    <?php endforeach; ?>
-    <button type="button" id="menuMoreBtn" class="flex-1 min-w-0 px-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] <?= !$inQuick ? 'text-neon-cyan' : 'text-slate-500' ?>">
-        <span class="text-base">☰</span>Menu
-    </button>
-</nav>
+<!-- Bottom nav PREMIUM 3D (v2.6) — semua halaman; ☰ membuka sheet semua menu -->
+<?php $bnavSheet = true; require __DIR__ . '/../partials/bottom_nav.php'; ?>
 
 <!-- Sheet SEMUA menu (mobile) — slide-up, tutup dengan ketuk area gelap -->
 <div id="menuSheet" class="lg:hidden fixed inset-0 z-50 hidden">
@@ -226,7 +187,6 @@ try { $dmUnread = \ChiperX\Models\Message::unreadCount((int) $u['id']); } catch 
     </div>
 </div>
 <style>@keyframes sheetUp{from{transform:translateY(48px);opacity:.4}to{transform:translateY(0);opacity:1}}</style>
-<div class="h-16 lg:hidden"></div>
 
 <script>
     setTimeout(() => document.querySelectorAll('.flash').forEach(el => { el.style.transition = 'opacity .5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }), 4500);

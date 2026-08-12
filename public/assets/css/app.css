@@ -97,8 +97,15 @@ select.form-input option { background: #0f172a; }
 .tree-item.active { background: rgba(139, 92, 246, .22); color: #c4b5fd; }
 .tree-children { margin-left: .9rem; border-left: 1px solid rgba(255, 255, 255, .07); padding-left: .35rem; }
 
-/* Animasi fade-up saat elemen masuk viewport (dipicu landing.js) */
-html.js [data-anim] { opacity: 0; }  /* hanya sembunyikan bila JS aktif — tanpa JS, konten TETAP tampil (fail-safe) */
+/* ── Animasi masuk [data-anim] — MURNI CSS (failsafe TOTAL) ─────────────
+   Konten PASTI tampil walau JS error / file JS lama masih ke-cache CDN.
+   JS (panel.js/landing.js) kini HANYA mengatur jeda berjenjang & efek
+   tambahan GSAP — ia tidak pernah lagi satu-satunya penentu visibilitas. */
+@keyframes cx-anim-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: none; }
+}
+html.js [data-anim] { animation: cx-anim-in .66s cubic-bezier(.22, 1, .36, 1) both; }
 
 /* ============== BADGES PROFIL (tags + centang biru, beranimasi) ============== */
 .badge {
@@ -183,3 +190,160 @@ img { max-width: 100%; height: auto; }
 /* Efek gelembung chat masuk */
 #chatList > div { animation: msgIn .18s ease-out; }
 @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ============================================================
+   v2.6 — BOTTOM NAVBAR PREMIUM 3D (semua halaman, mobile)
+   ============================================================
+   Bar mengambang ala kaca premium: bevel cahaya atas, shadow
+   berlapis (3D), glow neon pada item aktif, ikon terangkat,
+   titik indikator beranimasi, dan feedback tekan yang pegas. */
+
+.bnav {
+    position: fixed;
+    left: .7rem;
+    right: .7rem;
+    bottom: calc(.7rem + env(safe-area-inset-bottom));
+    z-index: 40;
+    animation: bnav-up .55s cubic-bezier(.22, 1, .36, 1) .1s both;
+}
+@keyframes bnav-up {
+    from { transform: translateY(115%); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+
+.bnav-bar {
+    display: flex;
+    align-items: stretch;
+    border-radius: 1.6rem;
+    padding: .42rem .35rem;
+    background:
+        linear-gradient(165deg, rgba(76, 47, 168, .42), rgba(13, 18, 36, .94) 55%),
+        rgba(13, 18, 36, .9);
+    border: 1px solid rgba(167, 139, 250, .30);
+    box-shadow:
+        0 24px 48px -14px rgba(2, 6, 23, .95),      /* bayangan tanah (kedalaman 3D) */
+        0 10px 30px -10px rgba(139, 92, 246, .50),  /* aura ungu */
+        inset 0 1.5px 0 rgba(255, 255, 255, .16),   /* bevel cahaya atas */
+        inset 0 -10px 18px rgba(0, 0, 0, .55);      /* cekung bawah → efek tebal */
+    backdrop-filter: blur(20px) saturate(1.3);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+}
+
+.bnav-item {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: .45rem .1rem .4rem;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    text-decoration: none;
+    color: #7c86a1;
+    font-size: 10px;
+    line-height: 1.15;
+    border-radius: 1.15rem;
+    -webkit-tap-highlight-color: transparent;
+    transition: color .25s ease;
+}
+.bnav-item .bnav-tx {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    z-index: 1;
+    transition: color .25s ease;
+}
+
+/* Ikon memantul pegas */
+.bnav-ic {
+    position: relative;
+    z-index: 1;
+    font-size: 17px;
+    line-height: 1;
+    display: inline-block;
+    transition: transform .38s cubic-bezier(.34, 1.8, .5, 1), filter .38s ease;
+}
+.bnav-item:active .bnav-ic { transform: scale(.78); }
+
+/* ── Item AKTIF: pil gradien melayang + ikon terangkat menyala ── */
+.bnav-item::before {
+    content: '';
+    position: absolute;
+    inset: 2px 5px;
+    border-radius: 1.05rem;
+    background: linear-gradient(160deg, rgba(139, 92, 246, .34), rgba(34, 211, 238, .14));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .16),
+        0 8px 20px -8px rgba(139, 92, 246, .65);
+    opacity: 0;
+    transform: scale(.55);
+    transition: opacity .3s ease, transform .38s cubic-bezier(.34, 1.56, .64, 1);
+}
+.bnav-item.active { color: #fff; }
+.bnav-item.active::before { opacity: 1; transform: scale(1); }
+.bnav-item.active .bnav-ic {
+    transform: translateY(-4px) scale(1.16);
+    filter: drop-shadow(0 0 10px rgba(34, 211, 238, .9));
+}
+.bnav-item.active .bnav-tx {
+    background: linear-gradient(90deg, #d8b4fe, #67e8f9);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 700;
+}
+
+/* Titik indikator bawah — melentur masuk */
+.bnav-dot {
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    width: 16px;
+    height: 3px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #a78bfa, #22d3ee);
+    box-shadow: 0 0 12px rgba(34, 211, 238, .85);
+    opacity: 0;
+    transform: translateX(-50%) scaleX(.25);
+    transition: opacity .3s ease, transform .38s cubic-bezier(.34, 1.56, .64, 1);
+}
+.bnav-item.active .bnav-dot { opacity: 1; transform: translateX(-50%) scaleX(1); }
+
+/* Badge angka (pesan belum dibaca) */
+.bnav-badge {
+    position: absolute;
+    top: -6px;
+    right: -11px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: linear-gradient(135deg, #fb7185, #e11d48);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 0 12px rgba(244, 63, 94, .8);
+    animation: bnav-badge-pulse 2.2s ease-in-out infinite;
+}
+@keyframes bnav-badge-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.14); }
+}
+
+/* Spacer agar konten paling bawah tak ketutup bar mengambang */
+.bnav-spacer { height: 104px; }
+
+/* Hormati preferensi gerak minimum */
+@media (prefers-reduced-motion: reduce) {
+    html.js [data-anim] { animation-duration: .01ms; }
+    .bnav, .bnav-badge { animation: none; }
+    .bnav-ic, .bnav-dot, .bnav-item::before { transition-duration: .01ms; }
+}

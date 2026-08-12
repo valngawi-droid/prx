@@ -143,6 +143,29 @@ if (!str_ends_with($__host, '.e2b.app')) { // jangan rusak preview iframe sandbo
 }
 unset($__host);
 
+// ── 🔄 AUTO-MIGRASI DB: file database/migrations/*.sql yang belum terpasang
+// diterapkan otomatis (dicatat di tabel `migrations`, aman diulang).
+// Jadi update kode TIDAK PERNAH LAGI lupa migrasi → bye "table doesn't exist"!
+try {
+    $___migrasiBaru = \ChiperX\Core\Migrator::sync();
+    if ($___migrasiBaru !== []) {
+        try {
+            AuditLogger::record('system.migrate', ['applied' => $___migrasiBaru], 'info');
+            DiscordWebhook::send('🔄 Auto-migrasi database', 'Migrasi baru diterapkan: `' . implode('`, `', $___migrasiBaru) . '`', DiscordWebhook::COLOR_INFO);
+        } catch (\Throwable) {
+        }
+    }
+    unset($___migrasiBaru);
+} catch (\Throwable $___me) {
+    // DB belum siap? Jangan bunuh request — catat saja; request tetap dilayani.
+    @file_put_contents(
+        BASE_PATH . '/storage/logs/php.log',
+        '[' . date('Y-m-d H:i:s') . '] MIGRATE-GAGAL: ' . $___me->getMessage() . "\n",
+        FILE_APPEND | LOCK_EX
+    );
+    unset($___me);
+}
+
 // ── 🧯 FIREWALL: blokir IP terlarang & tangkap deface/hack ──
 \ChiperX\Services\Firewall::guard();
 

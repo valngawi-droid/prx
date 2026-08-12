@@ -137,6 +137,9 @@
     </div>
 </footer>
 
+<!-- Bottom nav PREMIUM 3D (v2.6) — tampil di SEMUA halaman (mobile) -->
+<?php require __DIR__ . '/../partials/bottom_nav.php'; ?>
+
 <script>
     // Navbar mobile + auto-dismiss flash
     document.getElementById('navToggle')?.addEventListener('click', () => document.getElementById('navMobile').classList.toggle('hidden'));

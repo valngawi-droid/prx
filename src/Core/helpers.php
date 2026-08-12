@@ -11,6 +11,16 @@ use ChiperX\Core\Session;
  * Kumpulan helper global yang dipakai di Controllers & Views.
  */
 
+/**
+ * Versi rilis aplikasi — dipakai sebagai ?v= pada URL aset statis.
+ * Dinaikkan setiap rilis supaya cache browser/CDN (Cloudflare) OTOMATIS
+ * basi dan pengguna selalu menerima CSS/JS terbaru (anti halaman blank
+ * karena file .js lama yang ke-cache!).
+ */
+if (!defined('APP_VERSION')) {
+    define('APP_VERSION', '2.6.0');
+}
+
 /** Escape output HTML — satu-satunya cara aman menampilkan data user (anti-XSS). */
 function e(mixed $value): string
 {
@@ -22,10 +32,10 @@ function url(string $path = ''): string
     return Config::appUrl() . '/' . ltrim($path, '/');
 }
 
-/** URL aset statis publik. */
+/** URL aset statis publik — dengan versi anti-cache (?v=APP_VERSION). */
 function asset(string $path): string
 {
-    return '/assets/' . ltrim($path, '/');
+    return '/assets/' . ltrim($path, '/') . '?v=' . rawurlencode((string) APP_VERSION);
 }
 
 function redirect(string $to): Response

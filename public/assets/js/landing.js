@@ -14,25 +14,40 @@
     }
 
     // ---- Animasi masuk viewport ----
-    const animated = document.querySelectorAll('[data-anim]');
-    const io = new IntersectionObserver((entries) => {
-        entries.forEach((en) => {
-            if (!en.isIntersecting) return;
-            const el = en.target;
-            const delay = Array.prototype.indexOf.call(el.parentElement?.children ?? [], el) * 60;
-            if (window.gsap) {
-                gsap.fromTo(el,
-                    { opacity: 0, y: el.dataset.anim === 'zoom' ? 0 : 32, scale: el.dataset.anim === 'zoom' ? 0.92 : 1 },
-                    { opacity: 1, y: 0, scale: 1, duration: 0.75, delay: Math.min(delay, 400) / 1000, ease: 'power3.out' });
+    // FONDASI: app.css punya `html.js [data-anim] { animation: cx-anim-in … }`
+    // → konten SELALU tampil walau GSAP/file ini gagal dimuat (failsafe total).
+    // Bila GSAP tersedia, kita ambil alih efeknya (menonaktifkan animasi CSS
+    // pada elemen tsb) supaya reveal-on-scroll lebih hidup.
+    if (window.gsap) {
+        const reveal = (el, delay) => {
+            el.style.animation = 'none'; // serahkan ke GSAP
+            gsap.fromTo(el,
+                { opacity: 0, y: el.dataset.anim === 'zoom' ? 0 : 32, scale: el.dataset.anim === 'zoom' ? 0.92 : 1 },
+                { opacity: 1, y: 0, scale: 1, duration: 0.75, delay: Math.min(delay, 400) / 1000, ease: 'power3.out' });
+        };
+        const siblingDelay = (el) =>
+            Array.prototype.indexOf.call(el.parentElement ? el.parentElement.children : [], el) * 60;
+
+        const io = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+            entries.forEach((en) => {
+                if (!en.isIntersecting) return;
+                reveal(en.target, siblingDelay(en.target));
+                io.unobserve(en.target);
+            });
+        }, { threshold: 0.12 }) : null;
+
+        document.querySelectorAll('[data-anim]').forEach((el) => {
+            const nearTop = el.getBoundingClientRect().top < (window.innerHeight || 800) * 0.92;
+            if (nearTop || !io) {
+                reveal(el, siblingDelay(el));
             } else {
-                el.style.transition = `opacity .7s ease ${delay}ms, transform .7s ease ${delay}ms`;
-                el.style.opacity = '1';
-                el.style.transform = 'translateY(0)';
+                el.style.animation = 'none';
+                el.style.opacity = '0';
+                io.observe(el);
             }
-            io.unobserve(el);
         });
-    }, { threshold: 0.12 });
-    animated.forEach((el) => io.observe(el));
+    }
+    // Tanpa GSAP → animasi CSS murni bekerja otomatis; tidak ada yang disembunyikan.
 
     // ---- Counter statistik ----
     const counters = document.querySelectorAll('.counter');

@@ -154,18 +154,34 @@ try {
 }
 
 if ($dbOk) {
+    // 🔄 Self-heal dulu: terapkan migrasi yang tertinggal (sama seperti auto-migrasi web)
+    try {
+        $migrasiBaru = \ChiperX\Core\Migrator::sync(verbose: false, force: true);
+        periksa(
+            'Auto-migrasi database',
+            true,
+            $migrasiBaru === [] ? 'skema sudah terbaru' : 'baru diterapkan: ' . implode(', ', $migrasiBaru)
+        );
+    } catch (\Throwable $e) {
+        periksa('Auto-migrasi database', false, $e->getMessage());
+    }
+
     $wajibTabel = [
         'users', 'otp_codes', 'links', 'products', 'transactions', 'logs',
         'game_history', 'settings', 'changelogs', 'announcements', 'tickets',
         'ticket_replies', 'feedback', 'weekly_rewards', 'achievements',
         'user_achievements', 'api_tokens', 'login_tokens', 'notifications',
+        'redeem_codes', 'redeem_code_claims', 'shouts',
+        'posts', 'post_likes', 'post_comments', 'messages',
+        'follows', 'stories',
+        'banned_ips', 'threat_log', 'fw_rate', 'migrations',
     ];
     $ada = $pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
     $kurang = array_diff($wajibTabel, $ada);
     periksa(
         'Skema tabel lengkap (' . count($wajibTabel) . ' tabel)',
         $kurang === [],
-        $kurang === [] ? count($ada) . ' tabel ditemukan' : 'KURANG: ' . implode(', ', $kurang) . ' → import database/schema.sql'
+        $kurang === [] ? count($ada) . ' tabel ditemukan' : 'KURANG: ' . implode(', ', $kurang) . ' → jalankan: php bin/migrate.php'
     );
     $owner = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'owner'")->fetchColumn();
     periksa('Akun owner ada', (int) $owner >= 1, (int) $owner . ' owner → import database/seed.sql bila 0');
