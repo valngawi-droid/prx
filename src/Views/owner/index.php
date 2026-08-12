@@ -14,6 +14,49 @@
     </div>
 </div>
 
+<!-- GRAFIK 7 HARI + BROADCAST -->
+<div class="grid lg:grid-cols-5 gap-4 mt-6">
+    <div class="glass-card p-6 lg:col-span-3">
+        <h2 class="font-display font-bold text-white text-sm mb-4">📈 Aktivitas 7 Hari Terakhir</h2>
+        <div class="h-52"><canvas id="ownerChart"></canvas></div>
+    </div>
+    <div class="glass-card p-6 lg:col-span-2 border-violet-500/25">
+        <h2 class="font-display font-bold text-white text-sm">📣 Broadcast Notifikasi</h2>
+        <p class="text-[11px] text-slate-500 mt-1">Terkirim ke lonceng 🔔 SEMUA user sekaligus.</p>
+        <form method="post" action="/owner/broadcast" class="mt-3 space-y-2.5">
+            <?= csrf_field() ?>
+            <input name="title" maxlength="120" required placeholder="Judul — cth: Event Double Koin dimulai! 🎉" class="form-input w-full text-sm">
+            <textarea name="body" maxlength="300" rows="2" placeholder="Isi pesan (opsional)…" class="form-input w-full text-sm"></textarea>
+            <button class="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-xs font-bold text-white hover:opacity-90 transition">🚀 Kirim ke Semua User</button>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+<script>
+addEventListener('load', () => {
+    const el = document.getElementById('ownerChart');
+    if (!el || typeof Chart === 'undefined') return;
+    new Chart(el, {
+        type: 'line',
+        data: {
+            labels: <?= json_encode($chartLabels ?? []) ?>,
+            datasets: [
+                { label: '👥 Daftar baru', data: <?= json_encode($chartRegs ?? []) ?>, borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,.15)', fill: true, tension: .4, pointRadius: 3 },
+                { label: '🧾 Transaksi sukses', data: <?= json_encode($chartTx ?? []) ?>, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,.12)', fill: true, tension: .4, pointRadius: 3 },
+            ],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+                y: { beginAtZero: true, ticks: { color: '#64748b', precision: 0, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+            },
+        },
+    });
+});
+</script>
+
 <!-- Shortcut god mode -->
 <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
     <?php
@@ -22,6 +65,10 @@
         ['/owner/users', '🛡️', 'Kelola Akun', 'Add / edit / ban / delete admin & user'],
         ['/owner/settings', '⚙️', 'RTP & Setting', 'Atur win-rate RNG semua mini games'],
         ['/owner/links', '🔗', 'Atur Link', 'Kelola halaman All Link ChiperX'],
+        ['/owner/backups', '💾', 'Backup DB', 'mysqldump → .sql.gz satu klik + unduh'],
+        ['/owner/integrations', '🧩', 'Integrasi', 'SMTP Kirim.Email, Discord, payment keys'],
+        ['/owner/api-tokens', '🔑', 'API Tokens', 'Akses API publik untuk developer'],
+        ['/owner/logs', '📜', 'Audit Logs', 'Jejak semua aktivitas sensitif'],
     ];
     foreach ($shortcuts as [$href, $icon, $t, $d]): ?>
         <a href="<?= e($href) ?>" class="glass-card p-5 hover:border-violet-500/50 hover:-translate-y-1 transition group">

@@ -266,6 +266,59 @@ final class AdminController extends Controller
         return redirect('/admin/tickets');
     }
 
+    // ---------------- KODE REDEEM KUSTOM ----------------
+
+    /** GET /admin/codes */
+    public function codes(Request $req): string
+    {
+        return $this->panel('admin/codes', [
+            'title' => 'Kode Redeem',
+            'codes' => \ChiperX\Models\RedeemCode::all(),
+        ]);
+    }
+
+    /** POST /admin/codes — buat kode baru. */
+    public function saveCode(Request $req): Response
+    {
+        $this->guardCsrf();
+        $quota  = $req->str('quota', '', 8);
+        $res = \ChiperX\Models\RedeemCode::create(
+            $req->str('code', '', 40),
+            (int) $req->str('coins', '0', 8),
+            $quota === '' ? null : max(1, (int) $quota),
+            $req->str('expires_at', '', 25),
+            (int) auth_user()['id']
+        );
+        if ($res['ok']) {
+            AuditLogger::record('redeem_code.create', $res, 'warning', (int) auth_user()['id'], $req->ip());
+        }
+        flash($res['ok'] ? 'success' : 'error', $res['message']);
+        return redirect('/admin/codes');
+    }
+
+    /** POST /admin/codes/{id}/toggle — aktif/nonaktifkan kode. */
+    public function toggleCode(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $id  = (int) $params['id'];
+        $on  = \ChiperX\Core\Database::value('SELECT is_active FROM redeem_codes WHERE id = ?', [$id]);
+        if ($on !== null) {
+            \ChiperX\Models\RedeemCode::setActive($id, !((int) $on === 1));
+            flash('success', 'Status kode diubah.');
+        }
+        return redirect('/admin/codes');
+    }
+
+    /** POST /admin/shouts/{id}/delete — moderasi shoutbox. */
+    public function shoutDelete(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        \ChiperX\Models\Shout::delete((int) $params['id']);
+        AuditLogger::record('shout.delete', ['id' => (int) $params['id']], 'warning', (int) auth_user()['id'], $req->ip());
+        flash('success', 'Pesan shoutbox dihapus. 🧹');
+        return redirect('/dashboard#chat');
+    }
+
     // ---------------- PENGUMUMAN ----------------
 
     public function announcements(Request $req): string

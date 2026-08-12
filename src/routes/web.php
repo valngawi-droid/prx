@@ -33,6 +33,8 @@ return static function (Router $r): void {
     $r->post('/feedback', [HomeController::class, 'sendFeedback']);
     $r->get('/robots.txt', [HomeController::class, 'robots']);
     $r->get('/sitemap.xml', [HomeController::class, 'sitemap']);
+    $r->get('/members', [HomeController::class, 'members']);
+    $r->get('/status', [HomeController::class, 'status']);
 
     // ---------------- AUTH v2 ----------------
     // LOGIN: Username & Password → magic link email (tanpa ketik OTP)
@@ -81,6 +83,11 @@ return static function (Router $r): void {
     // ---------------- USER (wajib login) ----------------
     $r->get('/dashboard', [DashboardController::class, 'index'], AuthMiddleware::class);
     $r->post('/dashboard/claim-daily', [DashboardController::class, 'claimDaily'], AuthMiddleware::class);
+    $r->post('/dashboard/quest-claim', [DashboardController::class, 'questClaim'], AuthMiddleware::class);
+    $r->post('/dashboard/shout', [DashboardController::class, 'shout'], AuthMiddleware::class);
+    $r->get('/dashboard/shouts.json', [DashboardController::class, 'shoutsApi'], AuthMiddleware::class);
+    $r->post('/dashboard/shouts/{id}/delete', [DashboardController::class, 'shoutDelete'], AuthMiddleware::class);
+    $r->post('/dashboard/transfer', [DashboardController::class, 'transfer'], AuthMiddleware::class);
     $r->post('/dashboard/profile', [DashboardController::class, 'updateProfile'], AuthMiddleware::class);
     $r->post('/dashboard/tickets', [DashboardController::class, 'createTicket'], AuthMiddleware::class);
     $r->post('/dashboard/tickets/{id}/reply', [DashboardController::class, 'replyTicket'], AuthMiddleware::class);
@@ -89,6 +96,7 @@ return static function (Router $r): void {
     $r->post('/games/play', [GameController::class, 'play'], AuthMiddleware::class);
 
     $r->get('/redeem', [RedeemController::class, 'index'], AuthMiddleware::class);
+    $r->post('/redeem-code', [RedeemController::class, 'claimCode'], AuthMiddleware::class);
     $r->post('/redeem/{id}', [RedeemController::class, 'redeem'], AuthMiddleware::class);
 
     $r->get('/store', [StoreController::class, 'index'], AuthMiddleware::class);
@@ -130,6 +138,12 @@ return static function (Router $r): void {
     $r->post('/admin/announcements/{id}/toggle', [AdminController::class, 'toggleAnnouncement'], AdminMiddleware::class);
     $r->post('/admin/announcements/{id}/delete', [AdminController::class, 'deleteAnnouncement'], AdminMiddleware::class);
 
+    // Kode redeem kustom + moderasi shoutbox
+    $r->get('/admin/codes', [AdminController::class, 'codes'], AdminMiddleware::class);
+    $r->post('/admin/codes', [AdminController::class, 'saveCode'], AdminMiddleware::class);
+    $r->post('/admin/codes/{id}/toggle', [AdminController::class, 'toggleCode'], AdminMiddleware::class);
+    $r->post('/admin/shouts/{id}/delete', [AdminController::class, 'shoutDelete'], AdminMiddleware::class);
+
     $r->get('/admin/feedback', [AdminController::class, 'feedback'], AdminMiddleware::class);
     $r->post('/admin/feedback/{id}/approve', [AdminController::class, 'approveFeedback'], AdminMiddleware::class);
     $r->post('/admin/feedback/{id}/delete', [AdminController::class, 'deleteFeedback'], AdminMiddleware::class);
@@ -137,6 +151,10 @@ return static function (Router $r): void {
     // ---------------- OWNER PANEL (owner only / god mode) ----------------
     $r->get('/owner', [OwnerController::class, 'index'], OwnerMiddleware::class);
     $r->post('/owner/discord/test', [OwnerController::class, 'testDiscord'], OwnerMiddleware::class);
+    $r->post('/owner/broadcast', [OwnerController::class, 'broadcast'], OwnerMiddleware::class);
+    $r->get('/owner/backups', [OwnerController::class, 'backups'], OwnerMiddleware::class);
+    $r->post('/owner/backups/create', [OwnerController::class, 'backupCreate'], OwnerMiddleware::class);
+    $r->get('/owner/backups/{file}/download', [OwnerController::class, 'backupDownload'], OwnerMiddleware::class);
 
     $r->get('/owner/users', [OwnerController::class, 'users'], OwnerMiddleware::class);
     $r->get('/owner/integrations', [OwnerController::class, 'integrations'], OwnerMiddleware::class);

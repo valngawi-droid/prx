@@ -61,6 +61,63 @@ final class HomeController extends Controller
         ]);
     }
 
+    /** GET /members — direktori publik semua member (badges on display). */
+    public function members(Request $req): string
+    {
+        $q = $req->str('q', '', 40);
+        $members = [];
+        $total = 0;
+        try {
+            $total = (int) Database::value("SELECT COUNT(*) FROM users WHERE status = 'active'");
+            if ($q !== '') {
+                $members = Database::all(
+                    "SELECT id, name, username, role, is_verified, badges, created_at FROM users
+                     WHERE status = 'active' AND (name LIKE ? OR username LIKE ? OR email LIKE ?)
+                     ORDER BY id DESC LIMIT 24",
+                    ['%' . $q . '%', '%' . $q . '%', '%' . $q . '%']
+                );
+            } else {
+                $members = Database::all(
+                    "SELECT id, name, username, role, is_verified, badges, created_at FROM users
+                     WHERE status = 'active' ORDER BY id DESC LIMIT 24"
+                );
+            }
+        } catch (\Throwable) {
+        }
+        return $this->view('home/members', [
+            'title'   => 'Members ChiperX',
+            'members' => $members,
+            'total'   => $total,
+            'q'       => $q,
+        ]);
+    }
+
+    /** GET /status — halaman status publik ala status.enterprise. */
+    public function status(Request $req): string
+    {
+        $dbOk = false;
+        $tables = 0;
+        $ms = -1;
+        $t0 = microtime(true);
+        try {
+            Database::pdo()->query('SELECT 1');
+            $dbOk = true;
+            $ms = (int) ((microtime(true) - $t0) * 1000);
+            $tables = count(Database::all('SHOW TABLES'));
+        } catch (\Throwable) {
+        }
+        return $this->view('home/status', [
+            'title'   => 'Status Sistem',
+            'dbOk'    => $dbOk,
+            'dbMs'    => $ms,
+            'tables'  => $tables,
+            'phpVer'  => PHP_VERSION,
+            'mailDrv' => strtoupper((string) Config::secret('MAIL_DRIVER', 'smtp')),
+            'appUrl'  => Config::appUrl(),
+            'wib'     => date('d M Y H:i:s'),
+        ]);
+    }
+
     /** GET /robots.txt — SEO: arahkan crawler, sembunyikan area privat. */
     public function robots(Request $req): Response
     {

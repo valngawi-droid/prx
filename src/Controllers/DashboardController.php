@@ -39,6 +39,10 @@ final class DashboardController extends Controller
             'maxTickets'   => (int) (Setting::get('daily_tickets') ?? '3'),
             'dailyClaimed' => (($user['last_daily_claim'] ?? null) === date('Y-m-d')),
             'dailyBonus'   => (int) (Setting::get('daily_bonus') ?? '15'),
+            'streak'       => (int) ($user['streak_count'] ?? 0),
+            'gamesToday'   => GameHistory::countToday((int) $user['id']),
+            'questClaimed' => (($user['quest_claimed_on'] ?? null) === date('Y-m-d')),
+            'shouts'       => \ChiperX\Models\Shout::latest(25),
             'referralBonus' => (int) (Setting::get('referral_bonus') ?? '50'),
             'refLink'      => Config::appUrl() . '/login?ref=' . $refCode,
             'leaderboard'  => User::topCoins(5),
@@ -54,16 +58,130 @@ final class DashboardController extends Controller
     public function claimDaily(Request $req): Response
     {
         $this->guardCsrf();
-        $user  = auth_user();
-        $bonus = max(0, (int) (Setting::get('daily_bonus') ?? '15'));
+        $user = auth_user();
+        $base = max(0, (int) (Setting::get('daily_bonus') ?? '15'));
 
-        if (!User::claimDailyBonus((int) $user['id'], $bonus)) {
+        $res = User::claimDailyStreak((int) $user['id'], $base);
+        if (!$res['ok']) {
             flash('warning', 'Bonus harian sudah Anda klaim hari ini. Kembali lagi setelah 00:00 WIB! ⏰');
             return redirect('/dashboard');
         }
-        AuditLogger::record('daily_bonus.claim', ['bonus' => $bonus], 'info', (int) $user['id'], $req->ip());
-        flash('success', "Bonus harian +{$bonus} ChiperX Coin berhasil diklaim! 🎁");
+        AuditLogger::record('daily_bonus.claim', ['reward' => $res['reward'], 'streak' => $res['streak']], 'info', (int) $user['id'], $req->ip());
+        if ((int) $res['streak'] === 7) {
+            \ChiperX\Models\Notification::add((int) $user['id'], '🔥 STREAK 7 HARI SEMPURNA!', 'Kamu menuntaskan beruntun penuh — reward maksimal +' . $res['reward'] . ' koin. Besok siklus baru dimulai!', '/dashboard', 'success');
+            \ChiperX\Services\DiscordWebhook::send('🔥 Streak 7 Hari!', '', \ChiperX\Services\DiscordWebhook::COLOR_CYAN, [
+                ['name' => 'User', 'value' => $user['email'], 'inline' => true],
+                ['name' => 'Reward', 'value' => '+' . $res['reward'] . ' koin', 'inline' => true],
+            ]);
+        }
+        $api = ['day' => (int) $res['streak']];
+        flash('success', "Hari ke-{$api['day']} beruntun! +{$res['reward']} ChiperX Coin diklaim! 🎁 Besok: hari ke-" . min(7, (int) $res['streak'] + 1) . ' 🔥');
         return redirect('/dashboard');
+    }
+
+    /** POST /dashboard/quest-claim — reward quest harian (klaim harian + 3 game). */
+    public function questClaim(Request $req): Response
+    {
+        $this->guardCsrf();
+        $user = auth_user();
+        $uid  = (int) $user['id'];
+        $dailyDone = (($user['last_daily_claim'] ?? null) === date('Y-m-d'));
+        $gamesDone = GameHistory::countToday($uid) >= 3;
+        if (!$dailyDone || !$gamesDone) {
+            flash('warning', 'Quest belum lengkap — klaim bonus harian DAN main 3 game dulu hari ini.');
+            return redirect('/dashboard#quest');
+        }
+        $reward = 30;
+        if (!User::claimQuestReward($uid, $reward)) {
+            flash('warning', 'Quest hari ini sudah diklaim. Besok ada yang baru! ⏰');
+            return redirect('/dashboard#quest');
+        }
+        AuditLogger::record('quest.claim', ['reward' => $reward], 'info', $uid, $req->ip());
+        \ChiperX\Models\Notification::add($uid, '🎯 Quest Harian Selesai! +' . $reward . ' koin', 'Quest lengkap: bonus harian + 3 game hari ini. Mantap!', '/dashboard', 'success');
+        flash('success', "Quest harian selesai! +{$reward} koin 🎯🔥");
+        return redirect('/dashboard#quest');
+    }
+
+    /** POST /dashboard/shout — kirim pesan shoutbox (throttle 5 detik/user). */
+    public function shout(Request $req): Response
+    {
+        $this->guardCsrf();
+        $user = auth_user();
+        $msg  = trim($req->str('message', '', 190));
+        if (mb_strlen($msg) < 2) {
+            flash('error', 'Pesan terlalu pendek.');
+            return redirect('/dashboard#chat');
+        }
+        $last = \ChiperX\Models\Shout::lastPostedAt((int) $user['id']);
+        if ($last !== null && (time() - strtotime($last)) < 5) {
+            flash('warning', 'Santai — 1 pesan tiap 5 detik ya. ⏱️');
+            return redirect('/dashboard#chat');
+        }
+        \ChiperX\Models\Shout::add((int) $user['id'], $msg);
+        if (random_int(1, 20) === 1) {
+            \ChiperX\Models\Shout::prune(); // bersih-bersih sesekali (~5% request)
+        }
+        return redirect('/dashboard#chat');
+    }
+
+    /** GET /dashboard/shouts.json — polling shoutbox (10 dtk). */
+    public function shoutsApi(Request $req): Response
+    {
+        $me      = auth_user();
+        $canMod  = in_array(($me['role'] ?? 'user'), ['admin', 'owner'], true);
+        $viewerId = (int) $me['id'];
+        $rows = \ChiperX\Models\Shout::latest(25);
+        $out  = array_map(static function (array $s) use ($canMod, $viewerId): array {
+            return [
+                'id'      => (int) $s['id'],
+                'name'    => (string) $s['name'],
+                'msg'     => (string) $s['message'],
+                'ago'     => waktu_lalu((string) $s['created_at']),
+                'role'    => (string) $s['role'],
+                'verif'   => !empty($s['is_verified']),
+                'mine'    => (int) $s['user_id'] === $viewerId,
+                'can'     => $canMod || (int) $s['user_id'] === $viewerId,
+            ];
+        }, $rows);
+        return Response::json(['items' => $out]);
+    }
+
+    /** POST /dashboard/shouts/{id}/delete — hapus pesan sendiri (admin/owner: pesan siapa pun). */
+    public function shoutDelete(Request $req, array $params): Response
+    {
+        $this->guardCsrf();
+        $me  = auth_user();
+        $id  = (int) $params['id'];
+        $row = \ChiperX\Core\Database::one('SELECT user_id FROM shouts WHERE id = ?', [$id]);
+        if ($row && (in_array(($me['role'] ?? 'user'), ['admin', 'owner'], true) || (int) $row['user_id'] === (int) $me['id'])) {
+            \ChiperX\Models\Shout::delete($id);
+            flash('success', 'Pesan dihapus. 🧹');
+        }
+        return redirect('/dashboard#chat');
+    }
+
+    /** POST /dashboard/transfer — kirim koin ke member lain (fee 5%). */
+    public function transfer(Request $req): Response
+    {
+        $this->guardCsrf();
+        $user   = auth_user();
+        $target = User::findByIdentity($req->str('target', '', 120));
+        $amount = (int) $req->str('amount', '0', 12);
+        if (!$target) {
+            flash('error', 'Username/email tujuan tidak ditemukan.');
+            return redirect('/dashboard#transfer');
+        }
+        $res = User::transferCoins((int) $user['id'], (int) $target['id'], $amount, 5);
+        if (!$res['ok']) {
+            flash('error', $res['message']);
+            return redirect('/dashboard#transfer');
+        }
+        $fee = (int) ceil($amount * 5 / 100);
+        AuditLogger::record('coin.transfer', ['to' => $target['email'], 'amount' => $amount, 'fee' => $fee], 'info', (int) $user['id'], $req->ip());
+        \ChiperX\Models\Notification::add((int) $user['id'], '💸 Transfer terkirim', "{$amount} koin → {$target['name']} (biaya {$fee}).", '/dashboard');
+        \ChiperX\Models\Notification::add((int) $target['id'], '🪙 Kamu menerima ' . $amount . ' koin!', 'Dari ' . (string) $user['name'] . ' via transfer P2P.', '/dashboard', 'success');
+        flash('success', "Terkirim! {$amount} koin → {$target['name']} (biaya layanan {$fee}). 💸");
+        return redirect('/dashboard#transfer');
     }
 
     public function updateProfile(Request $req): Response

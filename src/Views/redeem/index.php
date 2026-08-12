@@ -7,6 +7,14 @@
             🪙 <span class="text-slate-400 text-sm">Koin Anda:</span>
             <b class="text-amber-300 text-xl"><?= e(number_format((int) $user['coin_balance'])) ?></b>
         </div>
+
+        <!-- 🎟️ KLAIM KODE KUSTOM -->
+        <form method="post" action="/redeem-code" class="mt-6 glass-card max-w-md mx-auto p-4 flex gap-2 items-center" data-anim="fade-up">
+            <?= csrf_field() ?>
+            <span class="text-lg">🎟️</span>
+            <input name="code" maxlength="40" required placeholder="Punya kode? Ketik di sini…" class="form-input flex-1 text-sm font-mono uppercase py-2.5">
+            <button class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-sm font-bold hover:opacity-90 transition">Klaim</button>
+        </form>
     </header>
 
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">

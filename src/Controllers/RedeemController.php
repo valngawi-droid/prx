@@ -26,6 +26,20 @@ final class RedeemController extends Controller
         ]);
     }
 
+    /** POST /redeem-code — klaim KODE kustom buatan admin (kuota + kedaluwarsa). */
+    public function claimCode(Request $req): Response
+    {
+        $this->guardCsrf();
+        $user = auth_user();
+        $res  = \ChiperX\Models\RedeemCode::claim((int) $user['id'], $req->str('code', '', 40));
+        if ($res['ok']) {
+            AuditLogger::record('redeem_code.claim', ['code' => strtoupper(trim($req->str('code', '', 40))), 'coins' => $res['coins']], 'info', (int) $user['id'], $req->ip());
+            \ChiperX\Models\Notification::add((int) $user['id'], '🎟️ Kode Redeem + ' . $res['coins'] . ' koin', 'Kode berhasil diklaim.', '/redeem', 'success');
+        }
+        flash($res['ok'] ? 'success' : 'error', $res['message']);
+        return redirect('/redeem');
+    }
+
     /** POST /redeem/{id} — potong koin & buka akses (transaksi atomik). */
     public function redeem(Request $req, array $params): Response
     {

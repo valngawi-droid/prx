@@ -177,6 +177,77 @@ final class User
      * Username & Password (alur auth v2)
      * ------------------------------------------------------------------ */
 
+    /**
+     * Klaim bonus harian dengan STREAK 7 HARI (atomik, FOR UPDATE).
+     * Hari 1 = base (pengaturan daily_bonus), lalu menaik: base × [1, 1.67, 2.67, 4, 5.67, 8, 13.33].
+     * Putus sehari → kembali ke hari 1. Setelah hari ke-7 → siklus ulang.
+     * @return array{ok:bool,message:string,reward?:int,streak?:int}
+     */
+    public static function claimDailyStreak(int $id, int $base): array
+    {
+        return Database::transaction(static function () use ($id, $base): array {
+            $row = Database::one('SELECT last_daily_claim, streak_count FROM users WHERE id = ? FOR UPDATE', [$id]);
+            if (!$row) {
+                return ['ok' => false, 'message' => 'Akun tidak ditemukan.'];
+            }
+            if (($row['last_daily_claim'] ?? null) === date('Y-m-d')) {
+                return ['ok' => false, 'message' => 'Bonus hari ini sudah diklaim.'];
+            }
+            $yesterday = date('Y-m-d', strtotime('-1 day'));
+            $streak = (($row['last_daily_claim'] ?? null) === $yesterday) ? ((int) $row['streak_count'] + 1) : 1;
+            if ($streak > 7) {
+                $streak = 1; // siklus ulang tiap pekan
+            }
+            $mult   = [1.0, 1.6667, 2.6667, 4.0, 5.6667, 8.0, 13.3333][$streak - 1];
+            $reward = max(0, (int) round($base * $mult));
+            Database::run(
+                'UPDATE users SET coin_balance = coin_balance + ?, last_daily_claim = CURDATE(), streak_count = ? WHERE id = ?',
+                [$reward, $streak, $id]
+            );
+            return ['ok' => true, 'message' => 'ok', 'reward' => $reward, 'streak' => $streak];
+        });
+    }
+
+    /** Klaim reward quest harian — atomik, 1× per hari. */
+    public static function claimQuestReward(int $id, int $reward): bool
+    {
+        return Database::run(
+            'UPDATE users SET coin_balance = coin_balance + ?, quest_claimed_on = CURDATE()
+             WHERE id = ? AND (quest_claimed_on IS NULL OR quest_claimed_on < CURDATE())',
+            [$reward, $id]
+        )->rowCount() > 0;
+    }
+
+    /**
+     * Transfer koin antar-member (fee % masuk "kas server" — hangus).
+     * Atomik: kedua baris dikunci; saldo pengirim dicek di dalam transaksi.
+     * @return array{ok:bool,message:string}
+     */
+    public static function transferCoins(int $fromId, int $toId, int $amount, int $feePct = 5): array
+    {
+        return Database::transaction(static function () use ($fromId, $toId, $amount, $feePct): array {
+            if ($fromId === $toId) {
+                return ['ok' => false, 'message' => 'Tidak bisa transfer ke diri sendiri. 😅'];
+            }
+            if ($amount < 10) {
+                return ['ok' => false, 'message' => 'Minimal transfer 10 koin.'];
+            }
+            $sender = Database::one('SELECT id, coin_balance, status FROM users WHERE id = ? FOR UPDATE', [$fromId]);
+            $target = Database::one('SELECT id, status FROM users WHERE id = ? FOR UPDATE', [$toId]);
+            if (!$target || ($target['status'] ?? '') !== 'active') {
+                return ['ok' => false, 'message' => 'Penerima tidak ditemukan / nonaktif.'];
+            }
+            $fee   = (int) ceil($amount * $feePct / 100);
+            $total = $amount + $fee;
+            if ((int) ($sender['coin_balance'] ?? 0) < $total) {
+                return ['ok' => false, 'message' => "Saldo kurang — butuh {$total} koin ({$amount} + biaya {$fee})."];
+            }
+            Database::run('UPDATE users SET coin_balance = coin_balance - ? WHERE id = ?', [$total, $fromId]);
+            Database::run('UPDATE users SET coin_balance = coin_balance + ? WHERE id = ?', [$amount, $toId]);
+            return ['ok' => true, 'message' => 'ok'];
+        });
+    }
+
     /** Algoritma hash password terkuat yang tersedia di build PHP ini. */
     public static function hashAlgo(): string
     {

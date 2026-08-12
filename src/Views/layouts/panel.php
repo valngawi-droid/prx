@@ -12,6 +12,7 @@ $menuUser = [
 $menuAdmin = [
     ['/admin', '📊', 'Ringkasan'],
     ['/admin/products', '📦', 'Produk & Upload'],
+    ['/admin/codes', '🎟️', 'Kode Redeem'],
     ['/admin/users', '👥', 'Pengguna'],
     ['/admin/transactions', '🧾', 'Transaksi'],
     ['/admin/tickets', '🎫', 'Tiket Bantuan'],
@@ -25,6 +26,7 @@ $menuOwner = [
     ['/owner/links', '🔗', 'Atur Link'],
     ['/owner/settings', '⚙️', 'Setting & RTP'],
     ['/owner/integrations', '🧩', 'Integrasi & API Keys'],
+    ['/owner/backups', '💾', 'Backup DB'],
     ['/owner/api-tokens', '🔑', 'API Tokens'],
     ['/owner/logs', '📜', 'Audit Logs'],
 ];

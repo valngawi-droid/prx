@@ -30,13 +30,142 @@ final class OwnerController extends Controller
 {
     public function index(Request $req): string
     {
+        // Data grafik 7 hari terakhir: pendaftaran baru & transaksi sukses
+        $labels = $regSeries = $txSeries = [];
+        try {
+            $days = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $days[] = date('Y-m-d', strtotime("-{$i} day"));
+            }
+            $regs = [];
+            foreach (\ChiperX\Core\Database::all("SELECT DATE(created_at) d, COUNT(*) c FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY d") as $r) {
+                $regs[$r['d']] = (int) $r['c'];
+            }
+            $txs = [];
+            foreach (\ChiperX\Core\Database::all("SELECT DATE(created_at) d, COUNT(*) c FROM transactions WHERE status = 'paid' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY d") as $r) {
+                $txs[$r['d']] = (int) $r['c'];
+            }
+            foreach ($days as $d) {
+                $labels[]    = date('d M', strtotime($d));
+                $regSeries[] = $regs[$d] ?? 0;
+                $txSeries[]  = $txs[$d] ?? 0;
+            }
+        } catch (\Throwable) {
+            // grafik kosong saja bila DB belum siap
+        }
         return $this->panel('owner/index', [
             'title'       => 'Owner Control',
             'totalUsers'  => User::totalCount(),
             'totalAdmins' => \ChiperX\Core\Database::value("SELECT COUNT(*) FROM users WHERE role = 'admin'"),
             'logsToday'   => AppLog::countToday(),
             'recentLogs'  => AppLog::recent(12),
+            'chartLabels' => $labels,
+            'chartRegs'   => $regSeries,
+            'chartTx'     => $txSeries,
         ]);
+    }
+
+    /** POST /owner/broadcast — kirim notifikasi lonceng ke SEMUA user. */
+    public function broadcast(Request $req): Response
+    {
+        $this->guardCsrf();
+        $title = $req->str('title', '', 120);
+        $body  = $req->str('body', '', 300);
+        if (mb_strlen($title) < 3) {
+            flash('error', 'Judul broadcast minimal 3 karakter.');
+            return redirect('/owner');
+        }
+        $sent = 0;
+        foreach (\ChiperX\Core\Database::all('SELECT id FROM users') as $u) {
+            \ChiperX\Models\Notification::add((int) $u['id'], '📣 ' . $title, $body !== '' ? $body : null, '/notifikasi', 'info');
+            $sent++;
+        }
+        AuditLogger::record('owner.broadcast', ['title' => $title, 'sent' => $sent], 'critical', (int) auth_user()['id'], $req->ip());
+        DiscordWebhook::send('📣 Broadcast Notifikasi', $title, DiscordWebhook::COLOR_WARNING, [
+            ['name' => 'Terkirim ke', 'value' => $sent . ' user', 'inline' => true],
+            ['name' => 'Oleh', 'value' => auth_user()['email'] ?? '?', 'inline' => true],
+        ]);
+        flash('success', "Broadcast terkirim ke 🔕 {$sent} user!");
+        return redirect('/owner');
+    }
+
+    // ---------------- BACKUP DATABASE ----------------
+
+    /** GET /owner/backups — daftar file cadangan. */
+    public function backups(Request $req): string
+    {
+        $dir   = BASE_PATH . '/storage/backups';
+        $files = [];
+        foreach (glob($dir . '/*.sql.gz') ?: [] as $f) {
+            $files[] = [
+                'name' => basename($f),
+                'size' => filesize($f) ?: 0,
+                'time' => date('d M Y H:i', filemtime($f) ?: time()),
+            ];
+        }
+        usort($files, static fn($a, $b) => strcmp($b['name'], $a['name']));
+        return $this->panel('owner/backups', [
+            'title' => 'Backup Database',
+            'files' => $files,
+        ]);
+    }
+
+    /** POST /owner/backups/create — mysqldump → .sql.gz (satu klik). */
+    public function backupCreate(Request $req): Response
+    {
+        $this->guardCsrf();
+        $cfg = Config::database();
+        $dir = BASE_PATH . '/storage/backups';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0750, true);
+        }
+        $file = $dir . '/chiperx-' . date('Ymd-His') . '.sql.gz';
+        $bin  = null;
+        foreach (['mysqldump', 'mariadb-dump'] as $cand) {
+            $p = trim((string) @shell_exec('command -v ' . $cand . ' 2>/dev/null'));
+            if ($p !== '') {
+                $bin = $cand;
+                break;
+            }
+        }
+        if ($bin === null) {
+            flash('error', 'mysqldump tidak ditemukan — jalankan: pkg install mariadb');
+            return redirect('/owner/backups');
+        }
+        $cmd = sprintf(
+            '%s -h%s -P%s -u%s -p%s %s --single-transaction --quick 2>/dev/null',
+            $bin,
+            escapeshellarg((string) $cfg['host']),
+            escapeshellarg((string) $cfg['port']),
+            escapeshellarg((string) $cfg['user']),
+            escapeshellarg((string) $cfg['pass']),
+            escapeshellarg((string) $cfg['name'])
+        );
+        $sql = (string) @shell_exec($cmd);
+        if (strlen($sql) < 200) {
+            flash('error', 'Dump gagal/kosong — cek kredensial DB & status MariaDB.');
+            return redirect('/owner/backups');
+        }
+        file_put_contents($file, gzencode($sql, 6));
+        AuditLogger::record('owner.backup_create', ['file' => basename($file)], 'critical', (int) auth_user()['id'], $req->ip());
+        flash('success', 'Backup dibuat: ' . basename($file) . ' (' . round(strlen(gzencode($sql, 6)) / 1024, 1) . ' KB) 💾');
+        return redirect('/owner/backups');
+    }
+
+    /** GET /owner/backups/{file}/download — unduh cadangan (owner only). */
+    public function backupDownload(Request $req, array $params): Response
+    {
+        $name = basename((string) ($params['file'] ?? ''));
+        $path = BASE_PATH . '/storage/backups/' . $name;
+        if (!preg_match('/^chiperx-\d{8}-\d{6}\.sql\.gz$/', $name) || !is_file($path)) {
+            return Response::html('File backup tidak ditemukan.', 404);
+        }
+        AuditLogger::record('owner.backup_download', ['file' => $name], 'critical', (int) auth_user()['id'], $req->ip());
+        header('Content-Type: application/gzip');
+        header('Content-Disposition: attachment; filename="' . $name . '"');
+        header('Content-Length: ' . filesize($path));
+        readfile($path);
+        exit;
     }
 
     // =================== USER & ADMIN MANAGEMENT ===================

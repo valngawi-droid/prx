@@ -29,4 +29,13 @@ final class GameHistory
     {
         return (int) Database::value('SELECT COUNT(*) FROM game_history');
     }
+
+    /** Jumlah permainan user HARI INI (untuk quest harian). */
+    public static function countToday(int $userId): int
+    {
+        return (int) Database::value(
+            'SELECT COUNT(*) FROM game_history WHERE user_id = ? AND DATE(created_at) = CURDATE()',
+            [$userId]
+        );
+    }
 }
