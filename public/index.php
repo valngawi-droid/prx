@@ -147,15 +147,22 @@ unset($__host);
 // diterapkan otomatis (dicatat di tabel `migrations`, aman diulang).
 // Jadi update kode TIDAK PERNAH LAGI lupa migrasi → bye "table doesn't exist"!
 try {
-    $___migrasiBaru = \ChiperX\Core\Migrator::sync();
-    if ($___migrasiBaru !== []) {
+    $___migrasi = \ChiperX\Core\Migrator::sync();
+    if ($___migrasi['applied'] !== []) {
         try {
-            AuditLogger::record('system.migrate', ['applied' => $___migrasiBaru], 'info');
-            DiscordWebhook::send('🔄 Auto-migrasi database', 'Migrasi baru diterapkan: `' . implode('`, `', $___migrasiBaru) . '`', DiscordWebhook::COLOR_INFO);
+            AuditLogger::record('system.migrate', ['applied' => $___migrasi['applied']], 'info');
+            DiscordWebhook::send('🔄 Auto-migrasi database', 'Migrasi baru diterapkan: `' . implode('`, `', $___migrasi['applied']) . '`', DiscordWebhook::COLOR_INFO);
         } catch (\Throwable) {
         }
     }
-    unset($___migrasiBaru);
+    if ($___migrasi['failed'] !== []) {
+        @file_put_contents(
+            BASE_PATH . '/storage/logs/php.log',
+            '[' . date('Y-m-d H:i:s') . '] MIGRATE-PENDING-GAGAL: ' . implode(', ', array_keys($___migrasi['failed'])) . "\n",
+            FILE_APPEND | LOCK_EX
+        );
+    }
+    unset($___migrasi);
 } catch (\Throwable $___me) {
     // DB belum siap? Jangan bunuh request — catat saja; request tetap dilayani.
     @file_put_contents(

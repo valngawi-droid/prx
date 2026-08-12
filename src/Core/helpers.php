@@ -18,7 +18,7 @@ use ChiperX\Core\Session;
  * karena file .js lama yang ke-cache!).
  */
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '2.6.0');
+    define('APP_VERSION', '2.6.1');
 }
 
 /** Escape output HTML — satu-satunya cara aman menampilkan data user (anti-XSS). */

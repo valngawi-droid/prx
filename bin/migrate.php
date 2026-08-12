@@ -36,8 +36,19 @@ echo "\n🔄 \033[1mChiperX Auto-Migrasi\033[0m\n";
 echo "   Memindai database/migrations/*.sql ...\n\n";
 
 try {
-    $baru = Migrator::sync(verbose: true, force: true);
-    if ($baru === []) {
+    $hasil = Migrator::sync(verbose: true, force: true);
+    if ($hasil['failed'] !== []) {
+        echo "\n❌ \033[31mAda migrasi yang GAGAL:\033[0m\n";
+        foreach ($hasil['failed'] as $nama => $errList) {
+            echo "   • {$nama}\n";
+            foreach ($errList as $err) {
+                echo "     → {$err}\n";
+            }
+        }
+        echo "\n   Detail juga tercatat di storage/logs/migrate.log\n\n";
+        exit(1);
+    }
+    if ($hasil['applied'] === []) {
         echo "  ✨ Skema sudah terbaru — tidak ada migrasi yang tertinggal.\n";
     }
     echo "\n✅ \033[32mSelesai!\033[0m Database siap tempur.\n\n";

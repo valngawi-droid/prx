@@ -156,12 +156,20 @@ try {
 if ($dbOk) {
     // 🔄 Self-heal dulu: terapkan migrasi yang tertinggal (sama seperti auto-migrasi web)
     try {
-        $migrasiBaru = \ChiperX\Core\Migrator::sync(verbose: false, force: true);
-        periksa(
-            'Auto-migrasi database',
-            true,
-            $migrasiBaru === [] ? 'skema sudah terbaru' : 'baru diterapkan: ' . implode(', ', $migrasiBaru)
-        );
+        $hasilMigrasi = \ChiperX\Core\Migrator::sync(verbose: false, force: true);
+        if ($hasilMigrasi['failed'] !== []) {
+            periksa(
+                'Auto-migrasi database',
+                false,
+                'GAGAL pada: ' . implode(', ', array_keys($hasilMigrasi['failed'])) . ' → lihat storage/logs/migrate.log'
+            );
+        } else {
+            periksa(
+                'Auto-migrasi database',
+                true,
+                $hasilMigrasi['applied'] === [] ? 'skema sudah terbaru' : 'baru diterapkan: ' . implode(', ', $hasilMigrasi['applied'])
+            );
+        }
     } catch (\Throwable $e) {
         periksa('Auto-migrasi database', false, $e->getMessage());
     }
