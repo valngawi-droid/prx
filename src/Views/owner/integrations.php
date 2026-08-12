@@ -16,6 +16,42 @@
     </div>
 </div>
 
+<?php
+// ── Panel konfigurasi AKTIF — jawaban instan atas "kok masih pakai yang lama?" ──
+$drvNow = strtolower((string) ($live['MAIL_DRIVER']['value'] ?? 'smtp'));
+[$drvLabel, $drvTone] = match ($drvNow) {
+    'kirimemail' => ['📮 KIRIM.EMAIL API (HTTPS)', 'text-orange-300 border-orange-400/50 bg-orange-500/10'],
+    'smtp'       => ['📧 SMTP KLASIK', 'text-sky-300 border-sky-400/50 bg-sky-500/10'],
+    'log'        => ['📝 LOG FILE (mode dev)', 'text-slate-300 border-slate-400/50 bg-slate-500/10'],
+    default      => ['❓ ' . strtoupper($drvNow), 'text-slate-300 border-slate-500/50 bg-slate-500/10'],
+};
+$keDom  = (string) ($live['KIRIMEMAIL_DOMAIN']['value'] ?? '');
+$fromNow = (string) ($live['MAIL_FROM_ADDRESS']['value'] ?? '');
+$fromMismatch = $drvNow === 'kirimemail' && $keDom !== '' && !str_ends_with(strtolower($fromNow), strtolower($keDom));
+?>
+<div class="glass-card p-4 mt-5 space-y-3">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+        <h2 class="font-display font-bold text-white text-sm">🛰️ Konfigurasi Aktif Saat Ini</h2>
+        <span class="px-2.5 py-1 rounded-full border text-[11px] font-bold <?= $drvTone ?>"><?= $drvLabel ?></span>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <?php foreach ($live as $k => $info):
+            $srcTone = $info['source'] === 'web (DB)' ? 'text-violet-300' : ($info['source'] === '.env' ? 'text-sky-300' : 'text-slate-500');
+        ?>
+        <div class="rounded-lg bg-white/[0.03] border border-white/10 px-2.5 py-2">
+            <p class="text-[10px] text-slate-500 font-mono"><?= e($k) ?></p>
+            <p class="text-[11px] text-slate-200 font-mono truncate" title="<?= e($info['value']) ?>"><?= e($info['value'] !== '' ? $info['value'] : '(kosong)') ?></p>
+            <p class="text-[9px] <?= $srcTone ?> mt-0.5">sumber: <?= e($info['source']) ?></p>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php if ($fromMismatch): ?>
+        <p class="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded-lg px-3 py-2">⚠️ Driver <b>kirimemail</b> aktif, tapi MAIL_FROM_ADDRESS (<b><?= e($fromNow) ?></b>) bukan alamat @<?= e($keDom) ?> — API akan menolak. Ubah ke <b>otp@<?= e($keDom) ?></b> lalu Simpan.</p>
+    <?php elseif ($drvNow === 'smtp' && str_contains($fromNow, 'gmail.com')): ?>
+        <p class="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded-lg px-3 py-2">⚠️ Pengirim masih alamat <b>Gmail</b> — wajar masuk Spam! Ganti MAIL_DRIVER → <b>kirimemail</b> + MAIL_FROM_ADDRESS → <b>otp@domainmu</b> agar terkirim lewat domain terverifikasi (SPF/DKIM).</p>
+    <?php endif; ?>
+</div>
+
 <form method="post" action="/owner/integrations" class="mt-6 space-y-6">
     <?= csrf_field() ?>
 

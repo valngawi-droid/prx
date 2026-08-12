@@ -137,10 +137,26 @@ final class OwnerController extends Controller
         foreach (self::CFG_KEYS as $key) {
             $values[$key] = Config::secret($key, \ChiperX\Core\Env::get($key, ''));
         }
+        // Panel "konfigurasi AKTIF saat ini" — beserta SUMBERNYA (web DB / .env / bawaan),
+        // supaya tidak ada lagi kebingungan "kok masih pakai konfigurasi lama?".
+        $live = [];
+        foreach (['MAIL_DRIVER', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME', 'SMTP_HOST', 'KIRIMEMAIL_DOMAIN', 'APP_URL', 'PAYMENT_DRIVER'] as $k) {
+            try {
+                $dbVal = Setting::get('cfg_' . $k);
+            } catch (\Throwable) {
+                $dbVal = null;
+            }
+            $envVal = \ChiperX\Core\Env::get($k, '');
+            $live[$k] = [
+                'value'  => (string) Config::secret($k, ''),
+                'source' => ($dbVal !== null && $dbVal !== '') ? 'web (DB)' : (($envVal !== '') ? '.env' : 'bawaan'),
+            ];
+        }
         return $this->panel('owner/integrations', [
             'title'  => 'Integrasi & API Keys',
             'values' => $values,
             'bools'  => self::CFG_BOOL_KEYS,
+            'live'   => $live,
         ]);
     }
 
