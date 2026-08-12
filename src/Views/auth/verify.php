@@ -14,6 +14,7 @@
 
         <form method="post" action="<?= e($action ?? '/auth/otp/verify') ?>" id="otpForm" class="mt-8">
             <?= csrf_field() ?>
+            <input type="hidden" name="email" value="<?= e($email) ?>"><?php /* penolong jika isi sesi hilang di tengah jalan */ ?>
             <div class="flex justify-center gap-2.5" id="otpBoxes">
                 <?php for ($i = 1; $i <= 6; $i++): ?>
                     <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" name="otp_<?= $i ?>" <?= $i === 1 ? 'autofocus' : '' ?>
@@ -30,6 +31,7 @@
             Tidak menerima kode?
             <form method="post" action="<?= e($resendAction ?? '/auth/otp/resend') ?>" class="inline" id="resendForm">
                 <?= csrf_field() ?>
+                <input type="hidden" name="email" value="<?= e($email) ?>">
                 <button id="resendBtn" <?= $cooldown > 0 ? 'disabled' : '' ?>
                         class="font-semibold text-neon-purple hover:text-neon-cyan transition disabled:text-slate-600 disabled:cursor-not-allowed">
                     Kirim Ulang <span id="cooldownText"><?= $cooldown > 0 ? '(' . (int) $cooldown . 's)' : '' ?></span>

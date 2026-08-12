@@ -5,7 +5,14 @@ declare(strict_types=1);
 namespace ChiperX\Core;
 
 /**
- * Proteksi CSRF: token per-session, divalidasi dengan hash_equals (timing-safe).
+ * Proteksi CSRF — token HMAC stateless.
+ *
+ * Token = HMAC-SHA256(secret, session_id). Keunggulan besar di lingkungan
+ * rapuh (Termux/shared hosting): token TETAP VALID meski isi file sesi
+ * hilang/direset di tengah jalan — yang dibutuhkan hanyalah cookie session-id
+ * yang sama. Mode lama (token acak di $_SESSION) tetap diterima agar form
+ * yang sudah terlanjur dirender tidak rusak.
+ *
  * Form HTML   → hidden input "_token"  (helper csrf_field())
  * Fetch/AJAX  → header "X-CSRF-TOKEN"  (meta tag csrf-token di layout)
  */
@@ -13,17 +20,50 @@ final class Csrf
 {
     public static function token(): string
     {
-        if (empty($_SESSION['_csrf'])) {
-            $_SESSION['_csrf'] = bin2hex(random_bytes(32));
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            Session::start();
         }
-        return $_SESSION['_csrf'];
+        $sid = session_id() !== '' ? session_id() : 'tanpa-sesi';
+        return substr(hash_hmac('sha256', 'csrf|' . $sid, self::secret()), 0, 48);
     }
 
     public static function validate(?string $token): bool
     {
-        return is_string($token)
-            && !empty($_SESSION['_csrf'])
-            && hash_equals($_SESSION['_csrf'], $token);
+        if (!is_string($token) || $token === '') {
+            return false;
+        }
+        // Mode utama: HMAC(session_id) — kebal kehilangan isi sesi (419 berulang).
+        if (hash_equals(self::token(), $token)) {
+            return true;
+        }
+        // Mode lawas (kompatibel mundur): token acak yang disimpan di sesi.
+        return !empty($_SESSION['_csrf'])
+            && hash_equals((string) $_SESSION['_csrf'], $token);
+    }
+
+    /**
+     * Rahasia penandatangan: APP_KEY di .env, atau file otomatis
+     * storage/.csrf_secret (dibuat sekali, chmod 0600, di-ignore git).
+     */
+    private static function secret(): string
+    {
+        static $secret = null;
+        if ($secret !== null) {
+            return $secret;
+        }
+        $secret = trim((string) Env::get('APP_KEY', ''));
+        if ($secret === '') {
+            $file = BASE_PATH . '/storage/.csrf_secret';
+            if (is_file($file)) {
+                $secret = trim((string) @file_get_contents($file));
+            }
+            if ($secret === '') {
+                $secret = bin2hex(random_bytes(32));
+                @file_put_contents($file, $secret, LOCK_EX);
+                @chmod($file, 0600);
+            }
+        }
+        return $secret;
     }
 
     /** Validasi otomatis dari body POST atau header AJAX. */
@@ -51,6 +91,7 @@ final class Csrf
             'kunci_sesi'   => implode('|', array_keys($_SESSION ?? [])),
             'save_path'    => (string) ini_get('session.save_path'),
             'gc_maxlife'   => (string) ini_get('session.gc_maxlifetime'),
+            'csrf_mode'    => 'hmac(session_id)+legacy',
         ];
         @file_put_contents(
             $logDir . '/php.log',

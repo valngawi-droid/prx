@@ -12,3 +12,5 @@
 node_modules/
 /storage/logs/*
 !/storage/logs/.gitkeep
+/storage/sessions/
+/storage/.csrf_secret

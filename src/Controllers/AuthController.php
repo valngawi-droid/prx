@@ -87,6 +87,15 @@ final class AuthController extends Controller
         Csrf::abortIfInvalid();
         $email = Session::get('otp_email');
         if (!is_string($email)) {
+            // Fallback tahan-lumat sesi: email ikut terkirim sebagai hidden field;
+            // bukti kepemilikan tetap KODE OTP 6 digit yang dicocokkan ke database.
+            $email = $req->email('email');
+            if (is_string($email)) {
+                Session::set('otp_email', $email);
+            }
+        }
+        if (!is_string($email)) {
+            flash('warning', 'Sesi formulir hilang — minta kode OTP baru ya.');
             return redirect('/login');
         }
         // Gabungkan 6 kotak input (otp_1..otp_6) atau satu input penuh
@@ -418,6 +427,14 @@ final class AuthController extends Controller
         Csrf::abortIfInvalid();
         $email = Session::get('reg_email');
         if (!is_string($email)) {
+            // Fallback: email dari hidden field; OTP 6 digit tetap pembuktinya.
+            $email = $req->email('email');
+            if (is_string($email)) {
+                Session::set('reg_email', $email);
+            }
+        }
+        if (!is_string($email)) {
+            flash('warning', 'Sesi formulir hilang — ulangi pendaftaran ya.');
             return redirect('/register');
         }
         $code = $req->str('otp');
