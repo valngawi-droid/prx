@@ -106,6 +106,20 @@ Set `MAIL_DRIVER=smtp` + isi `SMTP_USERNAME`/`SMTP_PASSWORD` (Google App Passwor
 isi `DISCORD_WEBHOOK_URL`, dan kredensial payment gateway pilihan Anda.
 Web root = `public/` (Nginx conf siap pakai di `docker/nginx/default.conf`).
 
+### 🌐 5) Hosting 24/7 TANPA Termux — pindah ke VPS (TERDIRI 1 PERINTAH!)
+Mau web online terus walau HP mati? Pindah ke VPS (gratis: Oracle Always Free,
+atau murah mulai ±Rp 40 rb/bln). Semua sudah diotomatisasi:
+```bash
+# Di VPS Ubuntu 22.04/24.04 (SSH sebagai root):
+git clone -b arena/019ff184-prx https://github.com/valngawi-droid/prx.git /opt/chiperx
+cd /opt/chiperx && bash bin/install-vps.sh      # Docker + .env aman + auto-start 24/7
+bash bin/setup-tunnel.sh /root/UUID.json        # Cloudflare Tunnel jadi service systemd
+bash bin/vps-update.sh                          # update 1 perintah selamanya
+```
+📖 **Panduan lengkap + pindah data dari HP: [`docs/hosting-24-7.md`](docs/hosting-24-7.md)**
+Container memakai `restart: unless-stopped` → auto-nyala tiap reboot (kunci 24/7).
+
+
 ### 📱 Menjalankan di Termux (Android)
 ```bash
 pkg update && pkg install php mariadb composer -y

@@ -1,0 +1,15 @@
+# Rahasia & file besar JANGAN masuk image Docker
+.env
+.env.local
+.git
+.gitignore
+storage/logs
+storage/cache
+storage/backups
+storage/uploads
+node_modules
+vendor
+docs
+tests
+*.md
+!README.md
