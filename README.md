@@ -117,6 +117,11 @@ bash bin/setup-tunnel.sh /root/UUID.json        # Cloudflare Tunnel jadi service
 bash bin/vps-update.sh                          # update 1 perintah selamanya
 ```
 📖 **Panduan lengkap + pindah data dari HP: [`docs/hosting-24-7.md`](docs/hosting-24-7.md)**
+
+Belum punya VPS / mau coba gratis tanpa kartu kredit? Repo ini juga siap untuk
+shared hosting **SmarterASP.net** (Windows IIS, trial 60 hari): ada `web.config`,
+cron versi web, dan builder ZIP 1 perintah — panduan:
+[`docs/hosting-smarterasp.md`](docs/hosting-smarterasp.md)
 Container memakai `restart: unless-stopped` → auto-nyala tiap reboot (kunci 24/7).
 
 
