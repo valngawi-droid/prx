@@ -22,12 +22,18 @@ cd "$(dirname "$0")/.." || exit 1
 
 FTP_HOST="${FTP_HOST:?set FTP_HOST dulu (contoh: WIN6049.SITE4NOW.NET)}"
 FTP_USER="${FTP_USER:?set FTP_USER dulu}"
-FTP_PASS="${FTP_PASS:?set FTP_PASS dulu}"
 FTP_DIR="${FTP_DIR:-/site1}"
+
+# Password: dari env FTP_PASS, atau TANYA interaktif (disembunyikan,
+# tidak masuk history shell — jauh lebih aman!)
+if [ -z "${FTP_PASS:-}" ]; then
+    read -rsp "🔑 FTP password: " FTP_PASS
+    echo ""
+fi
 
 command -v lftp >/dev/null 2>&1 || { echo "⬇️  pasang lftp..."; pkg install lftp -y; }
 
-LFTP_OPTS="set ssl:verify-certificate no; set ftp:ssl-allow yes; set net:timeout 25; set net:max-retries 2;"
+LFTP_OPTS="set ssl:verify-certificate no; set ftp:ssl-allow yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode on;"
 
 case "${1:-}" in
   --env)
