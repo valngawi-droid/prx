@@ -25,7 +25,13 @@ final class Request
                 $method = $spoof;
             }
         }
-        $uri  = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        // IIS URL Rewrite (hosting Windows spt SmarterASP) menyimpan URL asli
+        // di HTTP_X_ORIGINAL_URL / HTTP_X_REWRITE_URL bila request di-rewrite
+        // ke public/index.php — utamakan itu agar router membaca path asli.
+        $rawUri = $_SERVER['HTTP_X_ORIGINAL_URL']
+               ?? $_SERVER['HTTP_X_REWRITE_URL']
+               ?? $_SERVER['REQUEST_URI'] ?? '/';
+        $uri  = parse_url($rawUri, PHP_URL_PATH) ?: '/';
         $path = '/' . trim(rawurldecode($uri), '/');
         return new self($method, $path === '//' ? '/' : ($path === '/' ? '/' : rtrim($path, '/')));
     }
