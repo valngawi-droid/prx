@@ -59,6 +59,34 @@ MAIL_DRIVER=log           ← OTP tertulis ke storage/logs/mail.log (tes dulu)
 > 💡 APP_KEY bebas asal **panjang acak 64 karakter** (huruf+angka). Ongak-ongek keyboard juga boleh 😄
 > 💾 File ini hanya kamu yang bisa edit di panel. Web.config IIS otomatis memblokir akses `.env` dari browser.
 
+## 💻 MODE CMD (Termux) — tanpa klik-klik panel!
+
+Shared hosting tidak punya SSH, tapi 90% langkah bisa dari Termux:
+
+```bash
+pkg install lftp mariadb -y   # FTP client + MySQL client
+
+# Upload/sync kode (hanya file lebih baru; storage & .env aman):
+FTP_HOST=WIN6049.SITE4NOW.NET FTP_USER=valval-001 FTP_PASS='pass-panel' \
+    bash bin/ftp-sync.sh
+
+# Upload .env setelah diedit di Termux (nano .env):
+FTP_HOST=... FTP_USER=... FTP_PASS=... bash bin/ftp-sync.sh --env
+
+# Upload 1 file cepat (mis. web.config hasil edit):
+FTP_HOST=... FTP_USER=... FTP_PASS=... bash bin/ftp-sync.sh --file web.config
+
+# Import database TANPA phpMyAdmin (hostname dari panel MySQL):
+mariadb -h mysqlXXXX.site4now.net -u user_db -p db_chiperx < database/schema.sql
+mariadb -h mysqlXXXX.site4now.net -u user_db -p db_chiperx < database/seed.sql
+
+# Cek cepat DB kebaca:
+mariadb -h mysqlXXXX.site4now.net -u user_db -p db_chiperx -e "SHOW TABLES;"
+```
+
+Yang tetap di panel (2 klik saja): **PHP Version → 8.2/8.3** dan
+**izin Write folder `storage/`**.
+
 ## 🚀 Langkah 6 — Import database (phpMyAdmin)
 
 1. Panel → MySQL → klik ikon **phpMyAdmin** di database-mu → login.
